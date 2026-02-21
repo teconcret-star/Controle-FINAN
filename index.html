@@ -63,9 +63,39 @@
 
     <div id="form-container" class="card mb-6 border-t-4 border-gray-800">
         <input type="hidden" id="edit-id">
+
         <input type="text" id="desc" placeholder="Descrição" class="w-full border p-3 rounded-lg mb-2 outline-none focus:ring-2 focus:ring-blue-500">
-        <input type="number" id="valor" placeholder="Valor R$" class="w-full border p-3 rounded-lg mb-2 outline-none">
-        
+        <div class="grid grid-cols-2 gap-2 mb-4">
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Classificação</label>
+                <select id="classificacao" class="w-full border p-2 rounded-lg outline-none text-sm bg-gray-50" onchange="toggleCartaoCredito()">
+                    <option value="comum">Despesa Comum</option>
+                    <option value="cartao">Cartão de Crédito</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Valor</label>
+                <input type="number" id="valor" placeholder="Valor R$" class="w-full border p-3 rounded-lg outline-none">
+            </div>
+        </div>
+
+        <!-- Subitens do cartão de crédito (apenas se classificação for cartão) -->
+        <div id="subitens-cartao" class="mb-4 hidden">
+            <div class="flex items-end mb-2 gap-2">
+                <select id="categoriaItem" class="border p-2 rounded-lg text-sm bg-gray-50">
+                    <option value="Mercado">Mercado</option>
+                    <option value="Viagem">Viagem</option>
+                    <option value="Lazer">Lazer</option>
+                    <option value="Combustível">Combustível</option>
+                    <option value="Outros">Outros</option>
+                </select>
+                <input type="text" id="descItem" placeholder="Descrição subitem" class="border p-2 rounded-lg text-sm" style="flex:2">
+                <input type="number" id="valorItem" placeholder="Valor R$" class="border p-2 rounded-lg text-sm" style="width:110px">
+                <button onclick="addSubitem()" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs">Adicionar</button>
+            </div>
+            <div id="listaSubitens" class="space-y-1 text-xs"></div>
+        </div>
+
         <div class="grid grid-cols-2 gap-2 mb-4">
             <div>
                 <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Vencimento</label>
@@ -79,7 +109,7 @@
                 </select>
             </div>
         </div>
-        
+
         <div class="flex gap-2 text-sm font-bold">
             <button onclick="salvar('receita')" id="btn-receita" class="flex-1 bg-green-600 text-white py-3 rounded-xl uppercase hover:bg-green-700"> + Receita</button>
             <button onclick="salvar('despesa')" id="btn-despesa" class="flex-1 bg-red-600 text-white py-3 rounded-xl uppercase hover:bg-red-700">- Despesa</button>
@@ -93,22 +123,79 @@
         let transacoes = JSON.parse(localStorage.getItem('finance_app_v4')) || [];
         let mesSelecionado = (new Date()).getMonth(); // 0 a 11
         let anoSelecionado = (new Date()).getFullYear();
+        let subitensTemp = [];
+
+        function toggleCartaoCredito() {
+            const tipo = document.getElementById('classificacao').value;
+            const subitensDiv = document.getElementById('subitens-cartao');
+            if (tipo === 'cartao') {
+                subitensDiv.classList.remove('hidden');
+                document.getElementById('valor').setAttribute('readonly', true);
+            } else {
+                subitensDiv.classList.add('hidden');
+                document.getElementById('valor').removeAttribute('readonly');
+                subitensTemp = [];
+                atualizarSubitens();
+            }
+        }
+
+        function addSubitem() {
+            const categoria = document.getElementById('categoriaItem').value;
+            const desc = document.getElementById('descItem').value;
+            const valor = parseFloat(document.getElementById('valorItem').value);
+
+            if (!desc || isNaN(valor)) {
+                alert("Preencha descrição e valor do subitem!");
+                return;
+            }
+            subitensTemp.push({categoria, desc, valor});
+            atualizarSubitens();
+            document.getElementById('descItem').value = '';
+            document.getElementById('valorItem').value = '';
+        }
+
+        function atualizarSubitens() {
+            const div = document.getElementById('listaSubitens');
+            div.innerHTML = "";
+            let total = 0;
+            subitensTemp.forEach((item, idx) => {
+                total += item.valor;
+                div.innerHTML += `<div class="flex items-center justify-between bg-gray-100 rounded px-2 py-1">
+                    <span>[${item.categoria}] ${item.desc} - R$ ${item.valor.toFixed(2)}</span>
+                    <button onclick="removerSubitem(${idx})" class="text-red-500 ml-2">Excluir</button>
+                </div>`;
+            });
+            document.getElementById('valor').value = total ? total.toFixed(2) : '';
+        }
+
+        function removerSubitem(idx) {
+            subitensTemp.splice(idx, 1);
+            atualizarSubitens();
+        }
 
         function salvar(tipo) {
             const idEdit = document.getElementById('edit-id').value;
             const desc = document.getElementById('desc').value;
+            const classificacao = document.getElementById('classificacao').value;
             const valor = parseFloat(document.getElementById('valor').value);
             const dataVenc = document.getElementById('dataVenc').value;
             const status = document.getElementById('status').value;
 
             if (!desc || isNaN(valor) || !dataVenc) return alert("Preencha todos os campos!");
 
+            let subitens = classificacao === 'cartao' ? [...subitensTemp] : null;
+
+            if (classificacao === 'cartao' && (!subitens || subitens.length === 0)) {
+                return alert("Adicione pelo menos um subitem para cartão de crédito!");
+            }
+
             if (idEdit) {
                 const index = transacoes.findIndex(t => t.id == idEdit);
-                transacoes[index] = { ...transacoes[index], desc, valor, dataVenc, status };
+                transacoes[index] = { ...transacoes[index], desc, valor, tipo, dataVenc, status, classificacao, subitens };
             } else {
-                transacoes.push({ id: Date.now(), desc, valor, tipo, dataVenc, status });
+                transacoes.push({ id: Date.now(), desc, valor, tipo, dataVenc, status, classificacao, subitens });
             }
+            subitensTemp = [];
             cancelarEdicao();
             atualizarApp();
         }
@@ -117,10 +204,15 @@
             const item = transacoes.find(t => t.id === id);
             document.getElementById('edit-id').value = item.id;
             document.getElementById('desc').value = item.desc;
+            document.getElementById('classificacao').value = item.classificacao || 'comum';
+            toggleCartaoCredito();
             document.getElementById('valor').value = item.valor;
             document.getElementById('dataVenc').value = item.dataVenc;
             document.getElementById('status').value = item.status;
-            
+            if (item.classificacao === 'cartao' && item.subitens) {
+                subitensTemp = [...item.subitens];
+                atualizarSubitens();
+            }
             document.getElementById('form-container').classList.add('ring-2', 'ring-blue-500');
             document.getElementById('btn-receita').innerText = "CONCLUIR";
             document.getElementById('btn-despesa').classList.add('hidden');
@@ -131,12 +223,16 @@
         function cancelarEdicao() {
             document.getElementById('edit-id').value = '';
             document.getElementById('desc').value = '';
+            document.getElementById('classificacao').value = 'comum';
+            toggleCartaoCredito();
             document.getElementById('valor').value = '';
             document.getElementById('dataVenc').value = '';
             document.getElementById('btn-receita').innerText = "+ Receita";
             document.getElementById('btn-despesa').classList.remove('hidden');
             document.getElementById('btn-cancelar').classList.add('hidden');
             document.getElementById('form-container').classList.remove('ring-2', 'ring-blue-500');
+            subitensTemp = [];
+            atualizarSubitens();
         }
 
         function remover(id) {
@@ -185,7 +281,7 @@
                 let classeCor = "";
                 const temRec = movs.some(t => t.tipo === 'receita');
                 const temDes = movs.some(t => t.tipo === 'despesa');
-                
+
                 if (temRec && temDes) classeCor = "has-ambos";
                 else if (temRec) classeCor = "has-receita";
                 else if (temDes) classeCor = "has-despesa";
@@ -266,12 +362,21 @@
 
             transacoesMes.sort((a, b) => new Date(b.dataVenc) - new Date(a.dataVenc));
             transacoesMes.forEach(t => {
+                let subitemHtml = '';
+                if (t.classificacao === 'cartao' && t.subitens && t.subitens.length > 0) {
+                    subitemHtml = `<ul class="text-[10px] text-gray-600 ml-2">
+                        ${t.subitens.map(s => `<li>[${s.categoria}] ${s.desc} - R$ ${s.valor.toFixed(2)}</li>`).join('')}
+                    </ul>`;
+                }
                 if (t.tipo === 'receita') r += t.valor; else d += t.valor;
                 lista.innerHTML += `
                     <div class="card flex justify-between items-center border-l-8 ${t.tipo === 'receita' ? 'border-green-500' : 'border-red-500'} mb-3">
                         <div>
-                            <p class="font-bold text-gray-800 text-xs uppercase">${t.desc}</p>
+                            <p class="font-bold text-gray-800 text-xs uppercase">${t.desc}
+                                ${t.classificacao === 'cartao' ? '<span class="ml-2 text-blue-500 text-[10px]">Cartão de Crédito</span>' : ''}
+                            </p>
                             <p class="text-[10px] text-gray-400">${t.dataVenc.split('-').reverse().join('/')} | ${t.status.toUpperCase()}</p>
+                            ${subitemHtml}
                             <div class="mt-1 flex gap-3">
                                 <button onclick="editar(${t.id})" class="text-blue-600 text-[10px] font-bold">EDITAR</button>
                                 <button onclick="remover(${t.id})" class="text-gray-400 text-[10px]">EXCLUIR</button>
