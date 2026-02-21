@@ -31,9 +31,12 @@
     </div>
 
     <div class="card mb-6">
+        <!-- controles para trocar de mês -->
         <div class="flex justify-between items-center mb-4">
+            <button onclick="mudarMes(-1)" class="bg-gray-200 px-2 rounded hover:bg-gray-300">&lt;</button>
             <h3 id="mes-ano" class="font-bold text-gray-700 capitalize text-sm"></h3>
-            <span class="text-[9px] text-gray-400">Clique em um dia para lançar</span>
+            <button onclick="mudarMes(1)" class="bg-gray-200 px-2 rounded hover:bg-gray-300">&gt;</button>
+            <span class="text-[9px] text-gray-400 ml-4">Clique em um dia para lançar</span>
         </div>
         <div class="grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-gray-400 mb-2">
             <span>DOM</span><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span>
@@ -50,6 +53,12 @@
             <p class="text-[10px] text-red-600 font-bold uppercase">Saídas</p>
             <p id="total-despesas" class="text-lg font-bold text-red-700">R$ 0,00</p>
         </div>
+    </div>
+
+    <!-- Card Saldo Acumulado -->
+    <div class="card bg-blue-50 border-b-4 border-blue-500 mb-4 text-center">
+        <p class="text-[10px] text-blue-600 font-bold uppercase">Saldo acumulado</p>
+        <p id="saldo-acumulado" class="text-lg font-bold text-blue-700">R$ 0,00</p>
     </div>
 
     <div id="form-container" class="card mb-6 border-t-4 border-gray-800">
@@ -82,6 +91,8 @@
 
     <script>
         let transacoes = JSON.parse(localStorage.getItem('finance_app_v4')) || [];
+        let mesSelecionado = (new Date()).getMonth(); // 0 a 11
+        let anoSelecionado = (new Date()).getFullYear();
 
         function salvar(tipo) {
             const idEdit = document.getElementById('edit-id').value;
@@ -143,24 +154,34 @@
             setTimeout(() => input.classList.remove('ring-4', 'ring-blue-300'), 1500);
         }
 
+        function mudarMes(direcao) {
+            mesSelecionado += direcao;
+            if (mesSelecionado < 0) {
+                mesSelecionado = 11;
+                anoSelecionado--;
+            }
+            if (mesSelecionado > 11) {
+                mesSelecionado = 0;
+                anoSelecionado++;
+            }
+            atualizarApp();
+        }
+
         function gerarCalendario() {
             const grid = document.getElementById('calendar-grid');
             const titulo = document.getElementById('mes-ano');
             grid.innerHTML = '';
-            const hoje = new Date();
-            const mes = hoje.getMonth();
-            const ano = hoje.getFullYear();
-            titulo.innerText = hoje.toLocaleString('pt-br', { month: 'long', year: 'numeric' });
-            
-            const primeiroDia = new Date(ano, mes, 1).getDay();
-            const totalDias = new Date(ano, mes + 1, 0).getDate();
+            titulo.innerText = new Date(anoSelecionado, mesSelecionado).toLocaleString('pt-br', { month: 'long', year: 'numeric' });
+
+            const primeiroDia = new Date(anoSelecionado, mesSelecionado, 1).getDay();
+            const totalDias = new Date(anoSelecionado, mesSelecionado + 1, 0).getDate();
 
             for (let i = 0; i < primeiroDia; i++) grid.innerHTML += `<div></div>`;
 
             for (let dia = 1; dia <= totalDias; dia++) {
-                const dataString = `${ano}-${String(mes + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                const dataString = `${anoSelecionado}-${String(mesSelecionado + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
                 const movs = transacoes.filter(t => t.dataVenc === dataString);
-                
+
                 let classeCor = "";
                 const temRec = movs.some(t => t.tipo === 'receita');
                 const temDes = movs.some(t => t.tipo === 'despesa');
@@ -169,8 +190,12 @@
                 else if (temRec) classeCor = "has-receita";
                 else if (temDes) classeCor = "has-despesa";
 
+                // Mostra o dia atual, se for o mês/ano selecionado:
+                const hoje = new Date();
+                const isHoje = dia === hoje.getDate() && mesSelecionado === hoje.getMonth() && anoSelecionado === hoje.getFullYear();
+
                 grid.innerHTML += `
-                    <div class="calendar-day ${classeCor} ${dia === hoje.getDate() ? 'today' : ''}" onclick="focarData('${dataString}')">
+                    <div class="calendar-day ${classeCor} ${isHoje ? 'today' : ''}" onclick="focarData('${dataString}')">
                         ${dia}
                     </div>`;
             }
@@ -215,8 +240,32 @@
             const lista = document.getElementById('lista');
             let r = 0, d = 0;
             lista.innerHTML = '';
-            transacoes.sort((a, b) => new Date(b.dataVenc) - new Date(a.dataVenc));
+
+            // Mês e ano atual
+            const mesAtual = mesSelecionado + 1;
+            const anoAtual = anoSelecionado;
+
+            // Transações do mês selecionado
+            const transacoesMes = transacoes.filter(t => {
+                const [ano, mes] = t.dataVenc.split('-');
+                return parseInt(ano) === anoAtual && parseInt(mes) === mesAtual;
+            });
+
+            // Saldo acumulado até o mês anterior
+            let saldoAcumulado = 0;
             transacoes.forEach(t => {
+                const [ano, mes] = t.dataVenc.split('-');
+                if (
+                    (parseInt(ano) < anoAtual) ||
+                    (parseInt(ano) === anoAtual && parseInt(mes) < mesAtual)
+                ) {
+                    if (t.tipo === 'receita') saldoAcumulado += t.valor;
+                    else saldoAcumulado -= t.valor;
+                }
+            });
+
+            transacoesMes.sort((a, b) => new Date(b.dataVenc) - new Date(a.dataVenc));
+            transacoesMes.forEach(t => {
                 if (t.tipo === 'receita') r += t.valor; else d += t.valor;
                 lista.innerHTML += `
                     <div class="card flex justify-between items-center border-l-8 ${t.tipo === 'receita' ? 'border-green-500' : 'border-red-500'} mb-3">
@@ -231,8 +280,10 @@
                         <p class="font-black text-sm ${t.tipo === 'receita' ? 'text-green-600' : 'text-red-600'}">R$ ${t.valor.toFixed(2)}</p>
                     </div>`;
             });
+
             document.getElementById('total-receitas').innerText = `R$ ${r.toFixed(2)}`;
             document.getElementById('total-despesas').innerText = `R$ ${d.toFixed(2)}`;
+            document.getElementById('saldo-acumulado').innerText = `R$ ${(saldoAcumulado + r - d).toFixed(2)}`;
             gerarCalendario();
         }
 
