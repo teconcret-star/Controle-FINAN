@@ -42,7 +42,13 @@
         .item-cartao .rem { color: #ef4444; font-weight: bold; cursor: pointer; }
 
         /* estilo para input desabilitado */
-        .disabled-input { opacity: 0.6; cursor: not-allowed; }
+        .disabled-input { opacity: 0.6; cursor: not-allowed; pointer-events: none; }
+
+        /* destaque visual do tipo selecionado quando em modo edição */
+        .tipo-selecionado {
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.12) inset;
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 <body class="p-4 pb-24">
@@ -112,6 +118,8 @@
 
     <div id="form-container" class="card mb-6 border-t-4 border-gray-800">
         <input type="hidden" id="edit-id">
+        <!-- novo campo para manter tipo ao editar -->
+        <input type="hidden" id="edit-tipo">
         <input type="text" id="desc" placeholder="Descrição" class="w-full border p-3 rounded-lg mb-2 outline-none focus:ring-2 focus:ring-blue-500">
 
         <!-- CLASSIFICAÇÃO ANTES DA CATEGORIA (conforme solicitado) -->
@@ -186,6 +194,7 @@
         </div>
 
         <div class="flex gap-2 font-bold">
+            <!-- Ambos visíveis sempre; durante edição ambos ficam com texto ATUALIZAR e permitem salvar como o tipo escolhido -->
             <button onclick="salvar('receita')" id="btn-receita" class="flex-1 bg-green-600 text-white py-3 rounded-xl uppercase active:bg-green-700 transition" type="button"> + Receita</button>
             <button onclick="salvar('despesa')" id="btn-despesa" class="flex-1 bg-red-600 text-white py-3 rounded-xl uppercase active:bg-red-700 transition" type="button">- Despesa</button>
             <button onclick="cancelarEdicao()" id="btn-cancelar" class="hidden flex-1 bg-gray-400 text-white py-3 rounded-xl uppercase" type="button">Cancelar</button>
@@ -220,6 +229,11 @@
         const itensCartaoArea = document.getElementById('itens-cartao-area');
         const classInfoEl = document.getElementById('class-info');
         const valorEl = document.getElementById('valor');
+
+        const btnReceita = document.getElementById('btn-receita');
+        const btnDespesa = document.getElementById('btn-despesa');
+        const btnCancelar = document.getElementById('btn-cancelar');
+        const editTipoEl = document.getElementById('edit-tipo');
 
         // --- IMPORTAÇÃO ROBUSTA PARA CELULAR ---
         const fileInput = document.getElementById('importFile');
@@ -321,18 +335,36 @@
             document.body.removeChild(a);
         }
 
+        // Utilitário genérico para ativar/desativar campos (id) com classes visuais
+        function setFieldDisabledById(id, disabled) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            if (disabled) {
+                el.setAttribute('disabled', 'disabled');
+                el.classList.add('disabled-input');
+            } else {
+                el.removeAttribute('disabled');
+                el.classList.remove('disabled-input');
+            }
+        }
+
         // Manipulação da UI de classificação / itens do cartão
         function trocarClassificacao() {
             const c = classificacaoEl.value;
             if (c === 'cartao') {
                 itensCartaoArea.classList.remove('hidden');
                 classInfoEl.classList.remove('hidden');
+                // bloquear o campo valor e também categoria e subcategoria para que apenas os itens sejam utilizados/alterados
                 setValorDisabled(true);
+                setFieldDisabledById('categoria', true);
+                setFieldDisabledById('subcategoria', true);
                 atualizarValorItensCartao();
             } else {
                 itensCartaoArea.classList.add('hidden');
                 classInfoEl.classList.add('hidden');
                 setValorDisabled(false);
+                setFieldDisabledById('categoria', false);
+                setFieldDisabledById('subcategoria', false);
             }
         }
 
@@ -446,6 +478,14 @@
             valorEl.value = soma.toFixed(2);
         }
 
+        // muda a aparência das ações de tipo (usado sobretudo em edição para indicar o tipo atual)
+        function destacarTipoSelecionado(tipo) {
+            btnReceita.classList.remove('tipo-selecionado');
+            btnDespesa.classList.remove('tipo-selecionado');
+            if (tipo === 'receita') btnReceita.classList.add('tipo-selecionado');
+            else if (tipo === 'despesa') btnDespesa.classList.add('tipo-selecionado');
+        }
+
         function salvar(tipo) {
             const idEdit = document.getElementById('edit-id').value;
             const desc = document.getElementById('desc').value.trim();
@@ -468,6 +508,7 @@
                 obj.itensCartao = itens;
                 obj.valor = soma;
             } else {
+                // remover itensCartao se existirem e salvando como receita ou normal
                 delete obj.itensCartao;
             }
 
@@ -493,9 +534,22 @@
             document.getElementById('status').value = t.status;
             document.getElementById('categoria').value = t.categoria || 'Outros';
             document.getElementById('subcategoria').value = t.subcategoria || '';
-            document.getElementById('btn-receita').innerText = "ATUALIZAR";
-            document.getElementById('btn-despesa').classList.add('hidden');
-            document.getElementById('btn-cancelar').classList.remove('hidden');
+
+            // marcar tipo original (opcional)
+            editTipoEl.value = t.tipo || '';
+
+            // Mostrar ambos botões para permitir trocar tipo durante edição.
+            // Ambos ficam com label "ATUALIZAR RECEITA" / "ATUALIZAR DESPESA" e, ao clicar, salvam como o tipo escolhido.
+            btnReceita.classList.remove('hidden');
+            btnDespesa.classList.remove('hidden');
+            btnReceita.innerText = "ATUALIZAR RECEITA";
+            btnDespesa.innerText = "ATUALIZAR DESPESA";
+            btnReceita.setAttribute('onclick', "salvar('receita')");
+            btnDespesa.setAttribute('onclick', "salvar('despesa')");
+            btnCancelar.classList.remove('hidden');
+
+            // destacar visualmente o tipo atual
+            destacarTipoSelecionado(t.tipo);
 
             if (t.classificacao === 'cartao' && t.itensCartao && t.itensCartao.length) {
                 classificacaoEl.value = 'cartao';
@@ -504,30 +558,48 @@
                 list.innerHTML = '';
                 t.itensCartao.forEach(it => adicionarItemCartao(it));
                 atualizarValorItensCartao();
+                // quando for cartão, bloqueamos categoria/valor/subcategoria (itens representam as categorias/valores)
                 setValorDisabled(true);
+                setFieldDisabledById('categoria', true);
+                setFieldDisabledById('subcategoria', true);
             } else {
                 classificacaoEl.value = 'normal';
                 trocarClassificacao();
                 document.getElementById('itens-cartao-list').innerHTML = '';
                 setValorDisabled(false);
+                setFieldDisabledById('categoria', false);
+                setFieldDisabledById('subcategoria', false);
             }
 
+            // rolagem para topo para editar
             window.scrollTo({top: 0, behavior: 'smooth'});
         }
 
         function cancelarEdicao() {
             document.getElementById('edit-id').value = '';
+            editTipoEl.value = '';
             document.getElementById('desc').value = '';
             document.getElementById('valor').value = '';
             document.getElementById('btn-receita').innerText = "+ Receita";
-            document.getElementById('btn-despesa').classList.remove('hidden');
-            document.getElementById('btn-cancelar').classList.add('hidden');
+            document.getElementById('btn-despesa').innerText = "- Despesa";
+            // Restaurar visibilidade padrão dos botões
+            btnReceita.classList.remove('hidden');
+            btnDespesa.classList.remove('hidden');
+            btnCancelar.classList.add('hidden');
+
+            // reset onclicks para criação padrão
+            btnReceita.setAttribute('onclick', "salvar('receita')");
+            btnDespesa.setAttribute('onclick', "salvar('despesa')");
+            destacarTipoSelecionado(null);
+
             classificacaoEl.value = 'normal';
             trocarClassificacao();
             document.getElementById('itens-cartao-list').innerHTML = '';
             document.getElementById('subcategoria').value = '';
             document.getElementById('categoria').value = 'Mercado';
             setValorDisabled(false);
+            setFieldDisabledById('categoria', false);
+            setFieldDisabledById('subcategoria', false);
         }
 
         function remover(id) {
@@ -665,7 +737,7 @@
                     </div>`;
             });
 
-            // após inserir HTML, ligar ouvintes de evento para editar/excluir (delegação)
+            // após inserir HTML, ligar ouventes de evento para editar/excluir (delegação)
             listaDiv.querySelectorAll('.btn-edit').forEach(btn => {
                 btn.removeEventListener('click', handleEditClick);
                 btn.addEventListener('click', handleEditClick);
