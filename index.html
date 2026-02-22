@@ -20,11 +20,20 @@
 
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-xl font-bold text-gray-800">Minhas Contas 🏠</h1>
-        <div class="flex gap-2">
-            <label class="bg-gray-700 text-white text-[10px] font-bold px-3 py-2 rounded-lg shadow-md cursor-pointer hover:bg-gray-800 active:scale-95">
-                📥 IMPORTAR <input type="file" id="importFile" class="hidden" accept=".csv" onchange="importarExcel(event)">
-            </label>
-            <button onclick="exportarExcel()" class="bg-blue-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg shadow-md hover:bg-blue-700 active:scale-95">
+        <div class="flex flex-col items-end gap-1">
+            <button 
+                onclick="document.getElementById('importFile').click()" 
+                class="bg-gray-700 text-white text-[10px] font-bold px-3 py-2 rounded-lg shadow-md cursor-pointer hover:bg-gray-800 active:scale-95">
+                📥 IMPORTAR
+            </button>
+            <input 
+                type="file" 
+                id="importFile" 
+                accept=".csv,text/csv" 
+                style="display:none"
+                onchange="importarExcel(event)">
+            <span class="text-[9px] text-gray-500">Importe o arquivo .csv exportado pelo sistema</span>
+            <button onclick="exportarExcel()" class="bg-blue-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg shadow-md hover:bg-blue-700 active:scale-95 mt-1">
                 📊 EXPORTAR
             </button>
         </div>
@@ -286,7 +295,6 @@
                 else if (temRec) classeCor = "has-receita";
                 else if (temDes) classeCor = "has-despesa";
 
-                // Mostra o dia atual, se for o mês/ano selecionado:
                 const hoje = new Date();
                 const isHoje = dia === hoje.getDate() && mesSelecionado === hoje.getMonth() && anoSelecionado === hoje.getFullYear();
 
@@ -306,6 +314,7 @@
                     const linhas = e.target.result.split(/\r?\n/).slice(1);
                     let novos = [];
                     linhas.forEach(l => {
+                        if(l.trim() === "") return;
                         const c = l.split(';');
                         if (c.length >= 5) {
                             novos.push({ id: Date.now() + Math.random(), desc: c[0].replace(/"/g, ''), valor: parseFloat(c[1].replace(',', '.')), tipo: c[2].trim(), dataVenc: c[3].trim(), status: c[4].trim() });
@@ -315,10 +324,13 @@
                         transacoes = [...transacoes, ...novos];
                         atualizarApp();
                         alert("Importado com sucesso!");
+                    } else {
+                        alert("Nenhum dado válido encontrado no arquivo!");
                     }
                 } catch (err) { alert("Erro ao importar."); }
             };
             reader.readAsText(file);
+            event.target.value = '';
         }
 
         function exportarExcel() {
@@ -337,17 +349,14 @@
             let r = 0, d = 0;
             lista.innerHTML = '';
 
-            // Mês e ano atual
             const mesAtual = mesSelecionado + 1;
             const anoAtual = anoSelecionado;
 
-            // Transações do mês selecionado
             const transacoesMes = transacoes.filter(t => {
                 const [ano, mes] = t.dataVenc.split('-');
                 return parseInt(ano) === anoAtual && parseInt(mes) === mesAtual;
             });
 
-            // Saldo acumulado até o mês anterior
             let saldoAcumulado = 0;
             transacoes.forEach(t => {
                 const [ano, mes] = t.dataVenc.split('-');
