@@ -55,7 +55,7 @@
 
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-xl font-bold text-gray-800">Minhas Contas 🏠</h1>
-        <div class="flex flex-col items-end gap-1">
+        <div class="flex flex-col itens-end gap-1">
             <label for="importFile" class="bg-gray-700 text-white text-[10px] font-bold px-3 py-2 rounded-lg shadow-md active:scale-95 cursor-pointer">
                 📥 IMPORTAR
             </label>
@@ -763,6 +763,71 @@
             remover(id);
         }
 
+        // --- NOVA FUNÇÃO: checar alertas de vencimento ---
+        // Objetivo: ao abrir o app, exibir um único alert (consolidado) com:
+        //  - despesas VENCIDAS (dataVenc < hoje) e status != 'pago'
+        //  - despesas que vencem em até 2 dias (inclui hoje) e status != 'pago'
+        // Fundamentação: não altera nenhuma funcionalidade existente — apenas adiciona uma verificação e um alert informativo.
+        function checarAlertasVencimento() {
+            try {
+                const hoje = new Date();
+                // normaliza para meia-noite local para comparar somente datas
+                const hojeND = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+                const msDia = 24 * 60 * 60 * 1000;
+
+                const vencidas = [];
+                const proximas = [];
+
+                transacoes.forEach(t => {
+                    if (!t || t.tipo !== 'despesa') return;
+                    // Considerar apenas despesas não pagas (pendente ou outro status diferente de 'pago')
+                    if (t.status && String(t.status).toLowerCase() === 'pago') return;
+                    if (!t.dataVenc) return;
+                    const partes = t.dataVenc.split('-');
+                    if (partes.length < 3) return;
+                    // criar Date local
+                    const dt = new Date(Number(partes[0]), Number(partes[1]) - 1, Number(partes[2]));
+                    if (isNaN(dt.getTime())) return;
+                    const dtND = new Date(dt.getFullYear(), dt.getMonth(), dt.getDate());
+
+                    const diffMs = dtND - hojeND;
+                    const diffDias = Math.round(diffMs / msDia);
+
+                    if (diffDias < 0) {
+                        // já vencida
+                        vencidas.push({ desc: t.desc, dataVenc: t.dataVenc, valor: t.valor });
+                    } else if (diffDias <= 2) {
+                        // vence hoje, amanhã ou em 2 dias
+                        proximas.push({ desc: t.desc, dataVenc: t.dataVenc, dias: diffDias, valor: t.valor });
+                    }
+                });
+
+                if (vencidas.length === 0 && proximas.length === 0) return;
+
+                let mensagem = '';
+                if (vencidas.length) {
+                    mensagem += `Despesas VENCIDAS (${vencidas.length}):\n`;
+                    vencidas.forEach(v => {
+                        mensagem += `• ${v.desc} — Venc: ${v.dataVenc.split('-').reverse().join('/')} — R$ ${Number(v.valor || 0).toFixed(2)}\n`;
+                    });
+                }
+                if (proximas.length) {
+                    if (mensagem) mensagem += `\n`;
+                    mensagem += `Despesas vencem em até 2 dias (${proximas.length}):\n`;
+                    proximas.forEach(p => {
+                        const when = p.dias === 0 ? 'hoje' : (p.dias === 1 ? 'em 1 dia' : `em ${p.dias} dias`);
+                        mensagem += `• ${p.desc} — Venc: ${p.dataVenc.split('-').reverse().join('/')} (${when}) — R$ ${Number(p.valor || 0).toFixed(2)}\n`;
+                    });
+                }
+
+                // usa alert simples para não alterar a UI atual
+                alert(mensagem);
+            } catch (err) {
+                // em caso de erro, não interromper o app — apenas logar
+                console.error('Erro ao checar alertas de vencimento', err);
+            }
+        }
+
         function gerarCalendario() {
             const grid = document.getElementById('calendar-grid');
             grid.innerHTML = '';
@@ -784,6 +849,9 @@
             // garantir estado coerente no carregamento
             trocarClassificacao();
             atualizarApp();
+            // chamada da melhoria: checar alertas ao abrir o aplicativo
+            // feita após atualizarApp() para garantir que transacoes estejam carregadas e UI consistente
+            checarAlertasVencimento();
         };
     </script>
 </body>
