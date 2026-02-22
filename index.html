@@ -21,6 +21,9 @@
         .border-transporte { border-left-color: #f97316 !important; }
         .border-essencial { border-left-color: #eab308 !important; }
         .border-outros { border-left-color: #94a3b8 !important; }
+        .border-combustivel { border-left-color: #f43f5e !important; }
+        .border-viagem { border-left-color: #06b6d4 !important; }
+        .border-alimentacao { border-left-color: #10b981 !important; }
 
         /* Fix para o Input de Arquivo no Celular */
         #importFile {
@@ -33,6 +36,13 @@
             clip: rect(0, 0, 0, 0);
             border: 0;
         }
+
+        /* pequenos ajustes para a área de itens do cartão */
+        .item-cartao { border: 1px dashed #e5e7eb; padding: 0.5rem; border-radius: 0.5rem; background: #fff; }
+        .item-cartao .rem { color: #ef4444; font-weight: bold; cursor: pointer; }
+
+        /* estilo para input desabilitado */
+        .disabled-input { opacity: 0.6; cursor: not-allowed; }
     </style>
 </head>
 <body class="p-4 pb-24">
@@ -53,9 +63,15 @@
 
     <div class="card mb-6">
         <div class="flex justify-between items-center mb-4">
-            <button onclick="mudarMes(-1)" class="bg-gray-200 px-3 py-1 rounded-lg font-bold">&lt;</button>
-            <h3 id="mes-ano" class="font-bold text-gray-700 capitalize text-sm"></h3>
-            <button onclick="mudarMes(1)" class="bg-gray-200 px-3 py-1 rounded-lg font-bold">&gt;</button>
+            <div class="flex items-center gap-2">
+                <button onclick="mudarMes(-1)" class="bg-gray-200 px-3 py-1 rounded-lg font-bold">&lt;</button>
+                <h3 id="mes-ano" class="font-bold text-gray-700 capitalize text-sm"></h3>
+                <button onclick="mudarMes(1)" class="bg-gray-200 px-3 py-1 rounded-lg font-bold">&gt;</button>
+            </div>
+            <div class="text-right">
+                <label class="text-[12px] font-semibold text-gray-600 mr-2">Somente "Pago" no saldo</label>
+                <input type="checkbox" id="apenas-pagos-saldo" onchange="atualizarApp()" title="Considerar apenas transações com status 'pago' no cálculo do saldo">
+            </div>
         </div>
         <div class="grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-gray-400 mb-2">
             <span>DOM</span><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span>
@@ -75,7 +91,7 @@
     </div>
 
     <div class="card bg-blue-50 border-b-4 border-blue-500 mb-4 text-center">
-        <p class="text-[10px] text-blue-600 font-bold uppercase">Saldo Acumulado</p>
+        <p class="text-[10px] text-blue-600 font-bold uppercase">Saldo Acumulado (até o mês selecionado)</p>
         <p id="saldo-acumulado" class="text-lg font-bold text-blue-700">R$ 0,00</p>
     </div>
 
@@ -83,10 +99,13 @@
         <select id="filtro-categoria" onchange="atualizarApp()" class="w-full border p-2 rounded-lg bg-white text-sm shadow-sm outline-none">
             <option value="todos">Exibir Todas Categorias</option>
             <option value="Mercado">🛒 Mercado</option>
+            <option value="Alimentacao">🍽️ Alimentação</option>
             <option value="Lazer">🎡 Lazer</option>
             <option value="Saude">🏥 Saúde</option>
             <option value="Transporte">🚗 Transporte</option>
             <option value="Essencial">🏠 Essencial</option>
+            <option value="Combustivel">⛽ Combustível</option>
+            <option value="Viagem">✈️ Viagem</option>
             <option value="Outros">⚙️ Outros</option>
         </select>
     </div>
@@ -94,23 +113,52 @@
     <div id="form-container" class="card mb-6 border-t-4 border-gray-800">
         <input type="hidden" id="edit-id">
         <input type="text" id="desc" placeholder="Descrição" class="w-full border p-3 rounded-lg mb-2 outline-none focus:ring-2 focus:ring-blue-500">
+
+        <!-- CLASSIFICAÇÃO ANTES DA CATEGORIA (conforme solicitado) -->
+        <div class="mb-4">
+            <label class="text-[10px] font-bold text-gray-400 uppercase">Classificação</label>
+            <select id="classificacao" onchange="trocarClassificacao()" class="w-full border p-2 rounded-lg text-sm">
+                <option value="normal">Despesa/Receita Normal</option>
+                <option value="cartao">Despesa de Cartão de Crédito (explodir em itens)</option>
+            </select>
+            <p id="class-info" class="text-[10px] text-gray-400 mt-1 hidden">Ao escolher cartão de crédito, insira os itens individuais (cada item pode ter subcategoria). O campo Valor ficará bloqueado e mostrará a soma dos itens.</p>
+        </div>
         
-        <div class="grid grid-cols-2 gap-2 mb-4">
+        <div class="grid grid-cols-2 gap-2 mb-4 items-end">
             <div>
                 <label class="text-[10px] font-bold text-gray-400 uppercase">Categoria</label>
                 <select id="categoria" class="w-full border p-2 rounded-lg text-sm bg-gray-50">
                     <option value="Mercado">🛒 Mercado</option>
+                    <option value="Alimentacao">🍽️ Alimentação</option>
                     <option value="Lazer">🎡 Lazer</option>
                     <option value="Saude">🏥 Saúde</option>
                     <option value="Transporte">🚗 Transporte</option>
                     <option value="Essencial">🏠 Essencial</option>
+                    <option value="Combustivel">⛽ Combustível</option>
+                    <option value="Viagem">✈️ Viagem</option>
                     <option value="Outros">⚙️ Outros</option>
                 </select>
             </div>
             <div>
                 <label class="text-[10px] font-bold text-gray-400 uppercase">Valor R$</label>
-                <input type="number" id="valor" step="0.01" class="w-full border p-2 rounded-lg outline-none">
+                <input type="number" id="valor" step="0.01" class="w-full border p-2 rounded-lg outline-none" placeholder="0.00">
             </div>
+        </div>
+
+        <!-- Subcategoria disponível para qualquer categoria -->
+        <div id="subcategoria-area" class="mb-4">
+            <label class="text-[10px] font-bold text-gray-400 uppercase">Subcategoria</label>
+            <select id="subcategoria" class="w-full border p-2 rounded-lg text-sm bg-gray-50">
+                <option value="">— Selecionar / Não aplicar —</option>
+                <option value="Padaria">Padaria</option>
+                <option value="Farmacia">Farmácia</option>
+                <option value="Educacao">Educação</option>
+                <option value="Transporte">Transporte</option>
+                <option value="Vestuario">Vestuário</option>
+                <option value="RefeicaoFora">Refeição fora</option>
+                <option value="RefeicaoCasa">Refeição casa</option>
+                <option value="Outros">Outros</option>
+            </select>
         </div>
 
         <div class="grid grid-cols-2 gap-2 mb-4">
@@ -127,6 +175,16 @@
             </div>
         </div>
 
+        <!-- Área que permite adicionar itens quando classificação = cartao -->
+        <div id="itens-cartao-area" class="mb-4 hidden">
+            <div class="flex justify-between items-center mb-2">
+                <p class="font-bold text-sm">Itens do Cartão</p>
+                <button type="button" onclick="adicionarItemCartao()" class="bg-indigo-600 text-white px-3 py-1 rounded-lg text-xs">+ Item</button>
+            </div>
+            <div id="itens-cartao-list" class="space-y-2"></div>
+            <p class="text-[12px] text-gray-500 mt-2">Os valores dos itens serão somados automaticamente ao salvar. Cada item pode ter subcategoria.</p>
+        </div>
+
         <div class="flex gap-2 font-bold">
             <button onclick="salvar('receita')" id="btn-receita" class="flex-1 bg-green-600 text-white py-3 rounded-xl uppercase active:bg-green-700 transition"> + Receita</button>
             <button onclick="salvar('despesa')" id="btn-despesa" class="flex-1 bg-red-600 text-white py-3 rounded-xl uppercase active:bg-red-700 transition">- Despesa</button>
@@ -137,32 +195,23 @@
     <div id="lista" class="space-y-3"></div>
 
     <script>
-        // --- Dados e estado ---
-        const STORAGE_KEY = 'finance_app_v5';
-        let transacoes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        let transacoes = JSON.parse(localStorage.getItem('finance_app_v5')) || [];
         let mesSelecionado = (new Date()).getMonth();
         let anoSelecionado = (new Date()).getFullYear();
 
         const coresFronteira = {
             'Mercado': 'border-mercado', 'Lazer': 'border-lazer', 'Saude': 'border-saude',
-            'Transporte': 'border-transporte', 'Essencial': 'border-essencial', 'Outros': 'border-outros'
+            'Transporte': 'border-transporte', 'Essencial': 'border-essencial', 'Outros': 'border-outros',
+            'Combustivel': 'border-combustivel', 'Viagem': 'border-viagem', 'Alimentacao': 'border-alimentacao'
         };
 
-        // --- Helpers ---
-        function gerarId() {
-            return Date.now().toString() + '-' + Math.random().toString(36).slice(2);
-        }
+        // elementos principais
+        const classificacaoEl = document.getElementById('classificacao');
+        const itensCartaoArea = document.getElementById('itens-cartao-area');
+        const classInfoEl = document.getElementById('class-info');
+        const valorEl = document.getElementById('valor');
 
-        function removerBOM(text) {
-            if (text && text.charCodeAt(0) === 0xFEFF) return text.slice(1);
-            return text;
-        }
-
-        function formatBR(value) {
-            return 'R$ ' + Number(value || 0).toFixed(2).replace('.', ',');
-        }
-
-        // --- IMPORTAÇÃO (aceita os dois formatos: com e sem Categoria; detecta delimitador e cabeçalho) ---
+        // --- IMPORTAÇÃO ROBUSTA PARA CELULAR ---
         const fileInput = document.getElementById('importFile');
         fileInput.addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -171,172 +220,86 @@
             const reader = new FileReader();
             reader.onload = function(event) {
                 try {
-                    let text = event.target.result;
-                    text = removerBOM(text);
-                    const rawLines = text.split(/\r?\n/);
-                    // remover linhas vazias do começo/fim
-                    const lines = rawLines.map(l => l.trim()).filter((l, idx) => l !== '' || (l === '' && (idx > 0 && idx < rawLines.length - 1)));
-                    if (lines.length === 0) {
-                        alert('Arquivo vazio ou sem conteúdo válido.');
-                        fileInput.value = '';
-                        return;
-                    }
+                    let text = event.target.result || '';
 
-                    // Detectar delimitador: verificar primeira linha (header)
-                    const headerLine = lines[0];
-                    let delimiter = ';';
-                    const semiCount = (headerLine.match(/;/g) || []).length;
-                    const commaCount = (headerLine.match(/,/g) || []).length;
-                    if (semiCount === 0 && commaCount > 0) delimiter = ',';
-                    // Em muitos CSV exportados pelo Excel, valores podem ter ; e valores numéricos usam vírgula como decimal.
-                    // Aqui assumimos separador de colunas como ';' por padrão (mais comum no Brasil), mas detectamos caso seja ','
-                    
-                    const headers = headerLine.split(delimiter).map(h => h.replace(/(^"|"$)/g,'').trim().toLowerCase());
-                    const idxOf = (names) => {
-                        for (const n of names) {
-                            const i = headers.indexOf(n);
-                            if (i !== -1) return i;
-                        }
-                        return -1;
-                    };
+                    // remover BOM se existir
+                    if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
 
-                    // Mapeamento flexível por nome de coluna (pt/pt-br sem acento / en)
-                    const iDesc = idxOf(['descricao','descrição','desc','description','title']) !== -1 ? idxOf(['descricao','descrição','desc','description','title']) : 0;
-                    const iValor = idxOf(['valor','value','amount']) !== -1 ? idxOf(['valor','value','amount']) : 1;
-                    const iTipo = idxOf(['tipo','type']) !== -1 ? idxOf(['tipo','type']) : 2;
-                    const iData = idxOf(['vencimento','data','date']) !== -1 ? idxOf(['vencimento','data','date']) : 3;
-                    const iStatus = idxOf(['status']) !== -1 ? idxOf(['status']) : -1;
-                    const iCat = idxOf(['categoria','category','cat']) !== -1 ? idxOf(['categoria','category','cat']) : -1;
+                    // detectar separador (preferir ';' se encontrado)
+                    const sep = text.indexOf(';') !== -1 ? ';' : ',';
 
+                    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
                     const imported = [];
 
-                    // ler a partir da segunda linha (após header)
                     for (let i = 1; i < lines.length; i++) {
-                        const line = lines[i];
+                        const line = lines[i].trim();
                         if (!line) continue;
-                        // dividir pela vírgula de colunas (delimiter), mas preservar valores entre aspas
-                        const cols = parseCSVLine(line, delimiter);
-                        // Se poucas colunas, tentar alternativa com ; e com ,
-                        if (cols.length < 3) {
-                            const altCols1 = parseCSVLine(line, ';');
-                            if (altCols1.length > cols.length) {
-                                cols.splice(0, cols.length, ...altCols1);
-                            } else {
-                                const altCols2 = parseCSVLine(line, ',');
-                                if (altCols2.length > cols.length) cols.splice(0, cols.length, ...altCols2);
+
+                        const cols = line.split(sep);
+
+                        // espera pelo menos: desc;valor;tipo;dataVenc;status;categoria
+                        if (cols.length >= 6) {
+                            const descricao = (cols[0] || '').replace(/"/g, '').trim();
+                            const valorRaw = (cols[1] || '0').replace(/"/g, '').replace(',', '.').trim();
+                            const valor = parseFloat(valorRaw) || 0;
+                            const tipo = (cols[2] || '').toLowerCase().includes('receita') ? 'receita' : 'despesa';
+                            const dataVenc = (cols[3] || '').trim();
+                            const status = (cols[4] || 'pendente').toLowerCase().trim();
+                            const categoria = (cols[5] || 'Outros').trim();
+                            const subcategoria = cols[6] ? cols[6].trim() : '';
+                            const classificacao = cols[7] ? cols[7].trim() : 'normal';
+
+                            let itensCartao = [];
+                            if (cols.length > 8) {
+                                const rest = cols.slice(8).join(sep);
+                                try { itensCartao = rest ? JSON.parse(rest) : []; } catch (err) { itensCartao = []; }
+                            } else if (cols[8]) {
+                                try { itensCartao = JSON.parse(cols[8]); } catch (err) { itensCartao = []; }
                             }
+
+                            imported.push({
+                                id: Date.now() + Math.random(),
+                                desc: descricao,
+                                valor,
+                                tipo,
+                                dataVenc,
+                                status,
+                                categoria,
+                                subcategoria,
+                                classificacao,
+                                itensCartao
+                            });
                         }
-                        if (cols.length < 2) continue;
-
-                        const desc = (cols[iDesc] !== undefined ? cols[iDesc] : (cols[0] || '')).trim();
-                        const valorRaw = (cols[iValor] !== undefined ? cols[iValor] : (cols[1] || '')).trim();
-                        const tipoRaw = (cols[iTipo] !== undefined ? cols[iTipo] : (cols[2] || '')).trim();
-                        const dataRaw = (cols[iData] !== undefined ? cols[iData] : (cols[3] || '')).trim();
-                        const statusRaw = (iStatus !== -1 && cols[iStatus] !== undefined) ? cols[iStatus].trim() : (cols[4] ? cols[4].trim() : 'pendente');
-                        const catRaw = (iCat !== -1 && cols[iCat] !== undefined) ? cols[iCat].trim() : (cols[5] ? cols[5].trim() : 'Outros');
-
-                        // normalizar valor: aceitar formatos 1.234,56 ou 1234.56 / 1234,56
-                        let valor = parseFloat(String(valorRaw).replace(/\./g, '').replace(',', '.'));
-                        if (isNaN(valor)) valor = 0;
-
-                        const tipo = String(tipoRaw).toLowerCase().includes('receita') || String(tipoRaw).toLowerCase().includes('in') ? 'receita' : 'despesa';
-
-                        // normalizar data: aceitar yyyy-mm-dd ou dd/mm/yyyy
-                        let dataVenc = String(dataRaw).trim();
-                        if (!dataVenc) {
-                            const d = new Date();
-                            dataVenc = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-                        } else if (dataVenc.includes('/')) {
-                            const parts = dataVenc.split('/');
-                            if (parts.length === 3) {
-                                const [d, m, y] = parts;
-                                dataVenc = `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
-                            }
-                        } else if (!/^\d{4}-\d{2}-\d{2}$/.test(dataVenc)) {
-                            // tentar extrair dígitos se estiver em outro formato
-                            const m = dataVenc.match(/(\d{4})[^\d]?(\d{2})[^\d]?(\d{2})/);
-                            if (m) dataVenc = `${m[1]}-${m[2]}-${m[3]}`;
-                            else {
-                                const d = new Date();
-                                dataVenc = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-                            }
-                        }
-
-                        const status = String(statusRaw || 'pendente').toLowerCase();
-                        const categoria = String(catRaw || 'Outros').trim() || 'Outros';
-
-                        imported.push({
-                            id: gerarId(),
-                            desc,
-                            valor,
-                            tipo,
-                            dataVenc,
-                            status,
-                            categoria
-                        });
                     }
 
-                    if (imported.length === 0) {
-                        alert('Nenhuma transação válida encontrada no arquivo.');
-                    } else {
+                    if (imported.length) {
                         if (confirm(`Deseja importar ${imported.length} itens?`)) {
                             transacoes = [...transacoes, ...imported];
                             atualizarApp();
                             alert("Dados importados!");
                         }
+                    } else {
+                        alert("Nenhum registro válido encontrado no CSV.");
                     }
                 } catch (err) {
                     console.error(err);
                     alert("Erro ao ler o arquivo CSV.");
                 } finally {
-                    // Reset fundamental para celular
+                    // Reset necessário para permitir reimportar o mesmo arquivo no mobile
                     fileInput.value = '';
                 }
             };
             reader.readAsText(file, "UTF-8");
         });
 
-        // parse de linha CSV simples que respeita aspas (aceita delimitador passado)
-        function parseCSVLine(line, delimiter) {
-            const result = [];
-            let current = '';
-            let inQuotes = false;
-            for (let i = 0; i < line.length; i++) {
-                const ch = line[i];
-                const nch = line[i+1];
-                if (ch === '"' ) {
-                    if (inQuotes && nch === '"') { // dupla aspas dentro do campo -> literal "
-                        current += '"';
-                        i++; // pular segunda "
-                    } else {
-                        inQuotes = !inQuotes;
-                    }
-                    continue;
-                }
-                if (ch === delimiter && !inQuotes) {
-                    result.push(current);
-                    current = '';
-                    continue;
-                }
-                current += ch;
-            }
-            result.push(current);
-            return result.map(s => s.replace(/(^"|"$)/g, '').trim());
-        }
-
         // --- EXPORTAÇÃO ---
         function exportarCSV() {
-            if (!transacoes || transacoes.length === 0) return alert("Sem dados.");
-            // Cabeçalho fixo (em pt) — inclui Categoria
-            let csv = "\uFEFFDescricao;Valor;Tipo;Vencimento;Status;Categoria\n";
+            if (transacoes.length === 0) return alert("Sem dados.");
+            // Ordem: Descricao;Valor;Tipo;Vencimento;Status;Categoria;Subcategoria;Classificacao;ItensCartao
+            let csv = "\uFEFFDescricao;Valor;Tipo;Vencimento;Status;Categoria;Subcategoria;Classificacao;ItensCartao\n";
             transacoes.forEach(t => {
-                const desc = `"${String(t.desc || '').replace(/"/g, '""')}"`;
-                const valor = (Number(t.valor || 0)).toFixed(2).replace('.', ',');
-                const tipo = t.tipo || 'despesa';
-                const dataVenc = t.dataVenc || '';
-                const status = t.status || 'pendente';
-                const categoria = t.categoria || 'Outros';
-                csv += `${desc};${valor};${tipo};${dataVenc};${status};${categoria}\n`;
+                const itens = t.itensCartao ? JSON.stringify(t.itensCartao) : '';
+                csv += `${t.desc};${(Number(t.valor) || 0).toFixed(2).replace('.', ',')};${t.tipo};${t.dataVenc};${t.status};${t.categoria || 'Outros'};${t.subcategoria || ''};${t.classificacao || 'normal'};${itens}\n`;
             });
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
@@ -346,29 +309,161 @@
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
-            window.URL.revokeObjectURL(url);
         }
 
-        // --- CRUD (Salvar / Editar / Remover) ---
-        function salvar(tipoParam) {
+        // Manipulação da UI de classificação / itens do cartão
+        function trocarClassificacao() {
+            const c = classificacaoEl.value;
+            if (c === 'cartao') {
+                itensCartaoArea.classList.remove('hidden');
+                classInfoEl.classList.remove('hidden');
+                setValorDisabled(true);
+                atualizarValorItensCartao();
+            } else {
+                itensCartaoArea.classList.add('hidden');
+                classInfoEl.classList.add('hidden');
+                setValorDisabled(false);
+            }
+        }
+
+        function setValorDisabled(disabled) {
+            if (disabled) {
+                valorEl.setAttribute('disabled','disabled');
+                valorEl.classList.add('disabled-input');
+            } else {
+                valorEl.removeAttribute('disabled');
+                valorEl.classList.remove('disabled-input');
+            }
+        }
+
+        // adicionar item do cartão (cada item agora permite escolher subcategoria sempre)
+        function adicionarItemCartao(item) {
+            const list = document.getElementById('itens-cartao-list');
+            const idx = Date.now() + Math.floor(Math.random()*1000);
+            const categoriaVal = item && item.categoria ? item.categoria : 'Mercado';
+            const valorVal = item && item.valor ? item.valor : '';
+            const descVal = item && item.desc ? item.desc : '';
+            const subVal = item && item.subcategoria ? item.subcategoria : '';
+
+            const div = document.createElement('div');
+            div.className = 'item-cartao flex gap-2 items-center';
+            div.id = 'item-' + idx;
+            div.innerHTML = `
+                <div class="flex-1 grid grid-cols-4 gap-2 items-center">
+                    <select class="p-2 border rounded col-span-1 item-cat" onchange="itemCategoriaChanged(this)">
+                        <option value="Mercado">🛒 Mercado</option>
+                        <option value="Alimentacao">🍽️ Alimentação</option>
+                        <option value="Combustivel">⛽ Combustível</option>
+                        <option value="Lazer">🎡 Lazer</option>
+                        <option value="Viagem">✈️ Viagem</option>
+                        <option value="Transporte">🚗 Transporte</option>
+                        <option value="Essencial">🏠 Essencial</option>
+                        <option value="Saude">🏥 Saúde</option>
+                        <option value="Outros">⚙️ Outros</option>
+                    </select>
+                    <input type="text" class="p-2 border rounded col-span-1 item-desc" placeholder="Descrição item" value="${descVal}">
+                    <input type="number" step="0.01" class="p-2 border rounded col-span-1 item-val" placeholder="Valor" value="${valorVal}">
+                    <select class="p-2 border rounded col-span-1 item-subcat">
+                        <option value="">— Nenhuma —</option>
+                        <option value="Padaria">Padaria</option>
+                        <option value="Farmacia">Farmácia</option>
+                        <option value="Educacao">Educação</option>
+                        <option value="Transporte">Transporte</option>
+                        <option value="Vestuario">Vestuário</option>
+                        <option value="RefeicaoFora">Refeição fora</option>
+                        <option value="RefeicaoCasa">Refeição casa</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                </div>
+                <div class="w-10 text-right">
+                    <button class="rem" onclick="removerItemCartao('${idx}')" title="Remover">✖</button>
+                </div>
+            `;
+            list.appendChild(div);
+            const sel = div.querySelector('.item-cat');
+            sel.value = categoriaVal;
+            const subsel = div.querySelector('.item-subcat');
+            if (subVal) subsel.value = subVal;
+
+            // vincular atualização do total ao campo de valor do item
+            const valInput = div.querySelector('.item-val');
+            valInput.addEventListener('input', atualizarValorItensCartao);
+
+            // também recalc quando categoria/subcategoria/desc alterarem, por segurança
+            div.querySelector('.item-desc').addEventListener('input', atualizarValorItensCartao);
+            div.querySelector('.item-cat').addEventListener('change', atualizarValorItensCartao);
+            div.querySelector('.item-subcat').addEventListener('change', atualizarValorItensCartao);
+
+            // atualizar total imediatamente se classificação = cartao
+            if (classificacaoEl.value === 'cartao') atualizarValorItensCartao();
+        }
+
+        function itemCategoriaChanged(selectEl) {
+            // reservado para comportamentos futuros
+        }
+
+        function removerItemCartao(id) {
+            const el = document.getElementById('item-' + id);
+            if (el) {
+                el.remove();
+                if (classificacaoEl.value === 'cartao') atualizarValorItensCartao();
+            }
+        }
+
+        function coletarItensCartao() {
+            const list = document.getElementById('itens-cartao-list');
+            const itens = [];
+            if (!list) return itens;
+            const containers = list.querySelectorAll('.item-cartao');
+            containers.forEach(c => {
+                const categoria = c.querySelector('.item-cat').value;
+                const desc = c.querySelector('.item-desc').value.trim() || 'Item';
+                const valor = parseFloat(c.querySelector('.item-val').value);
+                const subEl = c.querySelector('.item-subcat');
+                const subcategoria = subEl ? subEl.value : '';
+                if (!isNaN(valor) && valor > 0) {
+                    itens.push({ categoria, desc, valor, subcategoria });
+                }
+            });
+            return itens;
+        }
+
+        // atualiza o campo #valor com a soma dos itens do cartão (usada quando classificação = cartao)
+        function atualizarValorItensCartao() {
+            const itens = coletarItensCartao();
+            const soma = itens.reduce((s, it) => s + (Number(it.valor) || 0), 0);
+            // definimos com ponto decimal (HTML number)
+            valorEl.value = soma.toFixed(2);
+        }
+
+        function salvar(tipo) {
             const idEdit = document.getElementById('edit-id').value;
             const desc = document.getElementById('desc').value.trim();
-            const valorInput = document.getElementById('valor').value;
-            const valor = parseFloat(String(valorInput).replace(',', '.'));
+            let valor = parseFloat(document.getElementById('valor').value);
             const dataVenc = document.getElementById('dataVenc').value;
             const status = document.getElementById('status').value;
             const categoria = document.getElementById('categoria').value;
+            const subcategoria = document.getElementById('subcategoria').value || '';
+            const classificacao = classificacaoEl.value;
 
             if (!desc || isNaN(valor) || !dataVenc) return alert("Preencha todos os campos!");
 
-            if (idEdit) {
-                // Atualizar mantendo o tipo original da transação
-                const idx = transacoes.findIndex(t => t.id === idEdit);
-                if (idx === -1) return alert('Transação não encontrada para edição.');
-                const tipoAtual = transacoes[idx].tipo || tipoParam || 'despesa';
-                transacoes[idx] = { id: idEdit, desc, valor: Number(valor), tipo: tipoAtual, dataVenc, status, categoria };
+            let obj = { id: idEdit ? Number(idEdit) : Date.now(), desc, valor: Number(valor) || 0, tipo, dataVenc, status, categoria, subcategoria, classificacao };
+
+            if (tipo === 'despesa' && classificacao === 'cartao') {
+                const itens = coletarItensCartao();
+                if (itens.length === 0) return alert("Adicione ao menos um item do cartão com valor válido.");
+                const soma = itens.reduce((s,it) => s + (Number(it.valor) || 0), 0);
+                obj.itensCartao = itens;
+                obj.valor = soma;
             } else {
-                const obj = { id: gerarId(), desc, valor: Number(valor), tipo: tipoParam, dataVenc, status, categoria };
+                delete obj.itensCartao;
+            }
+
+            if (idEdit) {
+                const idx = transacoes.findIndex(t => t.id == idEdit);
+                if (idx > -1) transacoes[idx] = obj;
+            } else {
                 transacoes.push(obj);
             }
             cancelarEdicao();
@@ -376,18 +471,34 @@
         }
 
         function editar(id) {
-            const t = transacoes.find(i => i.id === id);
-            if (!t) return alert('Transação não encontrada.');
+            const t = transacoes.find(i => i.id == id);
+            if (!t) return;
             document.getElementById('edit-id').value = t.id;
             document.getElementById('desc').value = t.desc;
-            document.getElementById('valor').value = t.valor;
+            document.getElementById('valor').value = (Number(t.valor) || 0).toFixed(2);
             document.getElementById('dataVenc').value = t.dataVenc;
             document.getElementById('status').value = t.status;
             document.getElementById('categoria').value = t.categoria || 'Outros';
+            document.getElementById('subcategoria').value = t.subcategoria || '';
             document.getElementById('btn-receita').innerText = "ATUALIZAR";
-            // Esconder botão despesa para evitar mudar tipo acidentalmente (mantemos o tipo atual)
             document.getElementById('btn-despesa').classList.add('hidden');
             document.getElementById('btn-cancelar').classList.remove('hidden');
+
+            if (t.classificacao === 'cartao' && t.itensCartao && t.itensCartao.length) {
+                classificacaoEl.value = 'cartao';
+                trocarClassificacao();
+                const list = document.getElementById('itens-cartao-list');
+                list.innerHTML = '';
+                t.itensCartao.forEach(it => adicionarItemCartao(it));
+                atualizarValorItensCartao();
+                setValorDisabled(true);
+            } else {
+                classificacaoEl.value = 'normal';
+                trocarClassificacao();
+                document.getElementById('itens-cartao-list').innerHTML = '';
+                setValorDisabled(false);
+            }
+
             window.scrollTo({top: 0, behavior: 'smooth'});
         }
 
@@ -395,22 +506,24 @@
             document.getElementById('edit-id').value = '';
             document.getElementById('desc').value = '';
             document.getElementById('valor').value = '';
-            document.getElementById('dataVenc').value = '';
-            document.getElementById('status').value = 'pendente';
-            document.getElementById('categoria').value = 'Mercado';
             document.getElementById('btn-receita').innerText = "+ Receita";
             document.getElementById('btn-despesa').classList.remove('hidden');
             document.getElementById('btn-cancelar').classList.add('hidden');
+            classificacaoEl.value = 'normal';
+            trocarClassificacao();
+            document.getElementById('itens-cartao-list').innerHTML = '';
+            document.getElementById('subcategoria').value = '';
+            document.getElementById('categoria').value = 'Mercado';
+            setValorDisabled(false);
         }
 
         function remover(id) {
-            if (confirm("Excluir definitivamente?")) {
-                transacoes = transacoes.filter(t => t.id !== id);
-                atualizarApp();
+            if(confirm("Excluir definitivamente?")) { 
+                transacoes = transacoes.filter(t => t.id != id); 
+                atualizarApp(); 
             }
         }
 
-        // --- Navegação de mês ---
         function mudarMes(dir) {
             mesSelecionado += dir;
             if (mesSelecionado < 0) { mesSelecionado = 11; anoSelecionado--; }
@@ -418,87 +531,150 @@
             atualizarApp();
         }
 
-        // --- Atualiza lista, totais e calendário ---
-        function atualizarApp() {
-            // Persistir
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(transacoes));
+        // calcula saldo acumulado até dataLimite (inclusive); opcionalmente só 'pago'
+        function calcularSaldoAcumuladoAte(dataLimite, considerarApenasPagos = false) {
+            let saldo = 0;
+            transacoes.forEach(t => {
+                if (considerarApenasPagos && t.status !== 'pago') return;
+                if (!t.dataVenc) return;
+                const dt = new Date(t.dataVenc);
+                if (isNaN(dt.getTime())) return;
+                if (dt <= dataLimite) {
+                    if (t.tipo === 'receita') {
+                        saldo += Number(t.valor) || 0;
+                    } else {
+                        if (t.itensCartao && Array.isArray(t.itensCartao)) {
+                            saldo -= t.itensCartao.reduce((s,it) => s + (Number(it.valor) || 0), 0);
+                        } else {
+                            saldo -= Number(t.valor) || 0;
+                        }
+                    }
+                }
+            });
+            return saldo;
+        }
 
+        function atualizarApp() {
+            localStorage.setItem('finance_app_v5', JSON.stringify(transacoes));
             const listaDiv = document.getElementById('lista');
             const filtro = document.getElementById('filtro-categoria').value;
-            let totalReceitas = 0, totalDespesas = 0, saldoTotal = 0;
+            let r = 0, d = 0;
 
-            // Calcular saldo acumulado considerando todas as transações
-            transacoes.forEach(t => {
-                if (t.tipo === 'receita') saldoTotal += Number(t.valor || 0);
-                else saldoTotal -= Number(t.valor || 0);
-            });
-
-            // Filtrar transações do mês selecionado para exibição/lista
+            // filtra transações do mês selecionado
             const transacoesMes = transacoes.filter(t => {
                 if (!t.dataVenc) return false;
-                const parts = String(t.dataVenc).split('-');
-                if (parts.length !== 3) return false;
+                const parts = t.dataVenc.split('-');
+                if (parts.length < 3) return false;
                 const ano = parseInt(parts[0], 10);
-                const mes = parseInt(parts[1], 10); // 1..12
+                const mes = parseInt(parts[1], 10);
                 return ano === anoSelecionado && mes === (mesSelecionado + 1);
             });
 
-            const exibicao = transacoesMes.filter(t => filtro === 'todos' || t.categoria === filtro);
+            // === SALDO ACUMULADO ===
+            const calcularSaldoAteFimDoMes = true; // comportamento recomendado
+            const considerarApenasPagos = document.getElementById('apenas-pagos-saldo').checked;
+
+            let saldoTotal = 0;
+            if (calcularSaldoAteFimDoMes) {
+                const ultimoDia = new Date(anoSelecionado, mesSelecionado + 1, 0);
+                saldoTotal = calcularSaldoAcumuladoAte(ultimoDia, considerarApenasPagos);
+            } else {
+                transacoes.forEach(t => {
+                    if (considerarApenasPagos && t.status !== 'pago') return;
+                    if (t.tipo === 'receita') saldoTotal += Number(t.valor) || 0;
+                    else {
+                        if (t.itensCartao && Array.isArray(t.itensCartao)) {
+                            saldoTotal -= t.itensCartao.reduce((s, it) => s + (Number(it.valor) || 0), 0);
+                        } else saldoTotal -= Number(t.valor) || 0;
+                    }
+                });
+            }
+
+            // exibição: apenas transacoes do mês e filtradas por categoria
+            const exibicao = transacoesMes.filter(t => {
+                if (filtro === 'todos') return true;
+                // se é cartão, verificar se algum item tem a categoria filtrada ou subcategoria
+                if (t.itensCartao && Array.isArray(t.itensCartao)) {
+                    return t.itensCartao.some(it => it.categoria === filtro || it.subcategoria === filtro);
+                }
+                return t.categoria === filtro || t.subcategoria === filtro;
+            });
 
             listaDiv.innerHTML = '';
             exibicao.sort((a,b) => new Date(b.dataVenc) - new Date(a.dataVenc)).forEach(t => {
-                if (t.tipo === 'receita') totalReceitas += Number(t.valor || 0); else totalDespesas += Number(t.valor || 0);
+                if (t.tipo === 'receita') r += Number(t.valor) || 0;
+                else {
+                    if (t.itensCartao && Array.isArray(t.itensCartao)) {
+                        const soma = t.itensCartao.reduce((s,it) => s + (Number(it.valor) || 0), 0);
+                        d += soma;
+                    } else d += Number(t.valor) || 0;
+                }
+
                 const borda = t.tipo === 'receita' ? 'border-green-500' : (coresFronteira[t.categoria] || 'border-outros');
-                listaDiv.innerHTML += `
-                    <div class="card flex justify-between items-center border-l-8 ${borda} mb-3">
-                        <div>
-                            <p class="font-bold text-gray-800 text-xs uppercase">${t.desc}</p>
-                            <p class="text-[9px] text-gray-400 font-bold">${(t.categoria || 'OUTROS').toUpperCase()} | ${(t.dataVenc || '').split('-').reverse().join('/')}</p>
-                            <div class="mt-2 flex gap-4 text-[10px] font-bold uppercase">
-                                <button onclick="editar('${t.id}')" class="text-blue-600">Editar</button>
-                                <button onclick="remover('${t.id}')" class="text-red-400">Excluir</button>
-                                <span class="${t.status === 'pago' ? 'text-green-500' : 'text-orange-500'}">${t.status}</span>
+
+                let detalheItens = '';
+                if (t.itensCartao && Array.isArray(t.itensCartao)) {
+                    detalheItens += `<div class="mt-2 text-[11px] text-gray-600 font-medium">Itens do Cartão:</div><div class="mt-1 space-y-1">`;
+                    t.itensCartao.forEach(it => {
+                        detalheItens += `<div class="flex justify-between items-center text-[12px] p-2 rounded">
+                            <div>
+                                <div class="font-bold">${it.desc} <span class="text-[10px] text-gray-500">(${it.categoria}${it.subcategoria ? ' • ' + it.subcategoria : ''})</span></div>
                             </div>
+                            <div class="font-black text-sm text-red-600">R$ ${Number(it.valor).toFixed(2)}</div>
+                        </div>`;
+                    });
+                    detalheItens += `</div>`;
+                }
+
+                const valorExib = (t.itensCartao && Array.isArray(t.itensCartao)) ? t.itensCartao.reduce((s,it) => s + (Number(it.valor)||0), 0) : Number(t.valor) || 0;
+
+                const categoriaDisplay = `${t.categoria ? t.categoria.toUpperCase() : ''}${t.subcategoria ? ' • ' + (t.subcategoria === 'RefeicaoFora' ? 'Refeição fora' : t.subcategoria === 'RefeicaoCasa' ? 'Refeição casa' : t.subcategoria) : ''}`;
+
+                listaDiv.innerHTML += `
+                    <div class="card flex flex-col border-l-8 ${borda} mb-3">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="font-bold text-gray-800 text-xs uppercase">${t.desc}</p>
+                                <p class="text-[9px] text-gray-400 font-bold">${(t.classificacao === 'cartao' ? 'Cartão • ' : '')}${categoriaDisplay} | ${t.dataVenc.split('-').reverse().join('/')}</p>
+                                <div class="mt-2 flex gap-4 text-[10px] font-bold uppercase">
+                                    <button onclick="editar(${t.id})" class="text-blue-600">Editar</button>
+                                    <button onclick="remover(${t.id})" class="text-red-400">Excluir</button>
+                                    <span class="${t.status === 'pago' ? 'text-green-500' : 'text-orange-500'}">${t.status}</span>
+                                </div>
+                            </div>
+                            <p class="font-black text-sm ${t.tipo === 'receita' ? 'text-green-600' : 'text-red-600'}">R$ ${valorExib.toFixed(2)}</p>
                         </div>
-                        <p class="font-black text-sm ${t.tipo === 'receita' ? 'text-green-600' : 'text-red-600'}">${formatBR(t.valor)}</p>
+                        ${detalheItens}
                     </div>`;
             });
 
-            document.getElementById('total-receitas').innerText = formatBR(totalReceitas);
-            document.getElementById('total-despesas').innerText = formatBR(totalDespesas);
-            document.getElementById('saldo-acumulado').innerText = formatBR(saldoTotal);
-
+            document.getElementById('total-receitas').innerText = `R$ ${r.toFixed(2)}`;
+            document.getElementById('total-despesas').innerText = `R$ ${d.toFixed(2)}`;
+            document.getElementById('saldo-acumulado').innerText = `R$ ${saldoTotal.toFixed(2)}`;
             gerarCalendario();
         }
 
-        // --- Gera calendário do mês selecionado ---
         function gerarCalendario() {
             const grid = document.getElementById('calendar-grid');
             grid.innerHTML = '';
             document.getElementById('mes-ano').innerText = new Date(anoSelecionado, mesSelecionado).toLocaleString('pt-br', { month: 'long', year: 'numeric' });
             const prim = new Date(anoSelecionado, mesSelecionado, 1).getDay();
             const ult = new Date(anoSelecionado, mesSelecionado + 1, 0).getDate();
-            // Preencher dias vazios do começo do mês
             for (let i = 0; i < prim; i++) grid.innerHTML += `<div></div>`;
             for (let dia = 1; dia <= ult; dia++) {
                 const dt = `${anoSelecionado}-${String(mesSelecionado + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
                 const movs = transacoes.filter(t => t.dataVenc === dt);
-                let cl = "";
-                if (movs.length > 0) {
-                    const hasRec = movs.some(m => m.tipo === 'receita');
-                    const hasDes = movs.some(m => m.tipo === 'despesa');
-                    cl = hasRec && hasDes ? "has-ambos" : (hasRec ? "has-receita" : (hasDes ? "has-despesa" : ""));
-                }
-                // marcar hoje (apenas visual)
-                const hoje = new Date();
-                const ehHoje = hoje.getFullYear() === anoSelecionado && (hoje.getMonth() === mesSelecionado) && (hoje.getDate() === dia);
-                const todayClass = ehHoje ? ' today' : '';
-                grid.innerHTML += `<div class="calendar-day ${cl}${todayClass}" onclick="document.getElementById('dataVenc').value='${dt}'">${dia}</div>`;
+                let cl = movs.some(m => m.tipo === 'receita') && movs.some(m => m.tipo === 'despesa') ? "has-ambos" : (movs.some(m => m.tipo === 'receita') ? "has-receita" : (movs.some(m => m.tipo === 'despesa') ? "has-despesa" : ""));
+                grid.innerHTML += `<div class="calendar-day ${cl}" onclick="document.getElementById('dataVenc').value='${dt}'">${dia}</div>`;
             }
         }
 
-        // Inicialização
-        window.onload = atualizarApp;
+        // inicializa
+        window.onload = function() {
+            // garantir estado coerente no carregamento
+            trocarClassificacao();
+            atualizarApp();
+        };
     </script>
 </body>
 </html>
