@@ -2,18 +2,37 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Financeiro Pro - Versão Final</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Financeiro Pro - Versão Final Mobile</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { background-color: #f3f4f6; font-family: sans-serif; }
-        .card { background: white; padding: 1.2rem; border-radius: 1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05); transition: all 0.3s; }
-        .calendar-day { min-height: 45px; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 0.5rem; border: 1px solid #e5e7eb; cursor: pointer; transition: 0.2s; }
-        .calendar-day:hover { background-color: #fef08a; transform: scale(1.05); }
+        body { background-color: #f3f4f6; font-family: sans-serif; -webkit-tap-highlight-color: transparent; }
+        .card { background: white; padding: 1.2rem; border-radius: 1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .calendar-day { min-height: 45px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; border-radius: 0.5rem; border: 1px solid #e5e7eb; cursor: pointer; }
         .has-receita { background-color: #dcfce7 !important; border-color: #22c55e !important; color: #166534; font-weight: bold; }
         .has-despesa { background-color: #fee2e2 !important; border-color: #ef4444 !important; color: #991b1b; font-weight: bold; }
         .has-ambos { background-image: linear-gradient(135deg, #dcfce7 50%, #fee2e2 50%) !important; font-weight: bold; }
         .today { border: 2px solid #2563eb !important; text-decoration: underline; }
+        
+        /* Cores das Categorias */
+        .border-mercado { border-left-color: #3b82f6 !important; }
+        .border-lazer { border-left-color: #a855f7 !important; }
+        .border-saude { border-left-color: #ec4899 !important; }
+        .border-transporte { border-left-color: #f97316 !important; }
+        .border-essencial { border-left-color: #eab308 !important; }
+        .border-outros { border-left-color: #94a3b8 !important; }
+
+        /* Fix para o Input de Arquivo no Celular */
+        #importFile {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
     </style>
 </head>
 <body class="p-4 pb-24">
@@ -21,31 +40,22 @@
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-xl font-bold text-gray-800">Minhas Contas 🏠</h1>
         <div class="flex flex-col items-end gap-1">
-            <button 
-                onclick="document.getElementById('importFile').click()" 
-                class="bg-gray-700 text-white text-[10px] font-bold px-3 py-2 rounded-lg shadow-md cursor-pointer hover:bg-gray-800 active:scale-95">
+            <label for="importFile" class="bg-gray-700 text-white text-[10px] font-bold px-3 py-2 rounded-lg shadow-md active:scale-95 cursor-pointer">
                 📥 IMPORTAR
-            </button>
-            <input 
-                type="file" 
-                id="importFile" 
-                accept=".csv,text/csv" 
-                style="display:none"
-                onchange="importarExcel(event)">
-            <span class="text-[9px] text-gray-500">Importe o arquivo .csv exportado pelo sistema</span>
-            <button onclick="exportarExcel()" class="bg-blue-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg shadow-md hover:bg-blue-700 active:scale-95 mt-1">
+            </label>
+            <input type="file" id="importFile" accept=".csv,text/csv">
+            
+            <button type="button" onclick="exportarCSV()" class="bg-blue-600 text-white text-[10px] font-bold px-3 py-2 rounded-lg shadow-md active:scale-95 mt-1">
                 📊 EXPORTAR
             </button>
         </div>
     </div>
 
     <div class="card mb-6">
-        <!-- controles para trocar de mês -->
         <div class="flex justify-between items-center mb-4">
-            <button onclick="mudarMes(-1)" class="bg-gray-200 px-2 rounded hover:bg-gray-300">&lt;</button>
+            <button onclick="mudarMes(-1)" class="bg-gray-200 px-3 py-1 rounded-lg font-bold">&lt;</button>
             <h3 id="mes-ano" class="font-bold text-gray-700 capitalize text-sm"></h3>
-            <button onclick="mudarMes(1)" class="bg-gray-200 px-2 rounded hover:bg-gray-300">&gt;</button>
-            <span class="text-[9px] text-gray-400 ml-4">Clique em um dia para lançar</span>
+            <button onclick="mudarMes(1)" class="bg-gray-200 px-3 py-1 rounded-lg font-bold">&gt;</button>
         </div>
         <div class="grid grid-cols-7 gap-1 text-center text-[9px] font-bold text-gray-400 mb-2">
             <span>DOM</span><span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span>
@@ -64,64 +74,62 @@
         </div>
     </div>
 
-    <!-- Card Saldo Acumulado -->
     <div class="card bg-blue-50 border-b-4 border-blue-500 mb-4 text-center">
-        <p class="text-[10px] text-blue-600 font-bold uppercase">Saldo acumulado</p>
+        <p class="text-[10px] text-blue-600 font-bold uppercase">Saldo Acumulado</p>
         <p id="saldo-acumulado" class="text-lg font-bold text-blue-700">R$ 0,00</p>
+    </div>
+
+    <div class="mb-6">
+        <select id="filtro-categoria" onchange="atualizarApp()" class="w-full border p-2 rounded-lg bg-white text-sm shadow-sm outline-none">
+            <option value="todos">Exibir Todas Categorias</option>
+            <option value="Mercado">🛒 Mercado</option>
+            <option value="Lazer">🎡 Lazer</option>
+            <option value="Saude">🏥 Saúde</option>
+            <option value="Transporte">🚗 Transporte</option>
+            <option value="Essencial">🏠 Essencial</option>
+            <option value="Outros">⚙️ Outros</option>
+        </select>
     </div>
 
     <div id="form-container" class="card mb-6 border-t-4 border-gray-800">
         <input type="hidden" id="edit-id">
-
         <input type="text" id="desc" placeholder="Descrição" class="w-full border p-3 rounded-lg mb-2 outline-none focus:ring-2 focus:ring-blue-500">
+        
         <div class="grid grid-cols-2 gap-2 mb-4">
             <div>
-                <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Classificação</label>
-                <select id="classificacao" class="w-full border p-2 rounded-lg outline-none text-sm bg-gray-50" onchange="toggleCartaoCredito()">
-                    <option value="comum">Despesa Comum</option>
-                    <option value="cartao">Cartão de Crédito</option>
+                <label class="text-[10px] font-bold text-gray-400 uppercase">Categoria</label>
+                <select id="categoria" class="w-full border p-2 rounded-lg text-sm bg-gray-50">
+                    <option value="Mercado">🛒 Mercado</option>
+                    <option value="Lazer">🎡 Lazer</option>
+                    <option value="Saude">🏥 Saúde</option>
+                    <option value="Transporte">🚗 Transporte</option>
+                    <option value="Essencial">🏠 Essencial</option>
+                    <option value="Outros">⚙️ Outros</option>
                 </select>
             </div>
             <div>
-                <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Valor</label>
-                <input type="number" id="valor" placeholder="Valor R$" class="w-full border p-3 rounded-lg outline-none">
+                <label class="text-[10px] font-bold text-gray-400 uppercase">Valor R$</label>
+                <input type="number" id="valor" step="0.01" class="w-full border p-2 rounded-lg outline-none">
             </div>
-        </div>
-
-        <!-- Subitens do cartão de crédito (apenas se classificação for cartão) -->
-        <div id="subitens-cartao" class="mb-4 hidden">
-            <div class="flex items-end mb-2 gap-2">
-                <select id="categoriaItem" class="border p-2 rounded-lg text-sm bg-gray-50">
-                    <option value="Mercado">Mercado</option>
-                    <option value="Viagem">Viagem</option>
-                    <option value="Lazer">Lazer</option>
-                    <option value="Combustível">Combustível</option>
-                    <option value="Outros">Outros</option>
-                </select>
-                <input type="text" id="descItem" placeholder="Descrição subitem" class="border p-2 rounded-lg text-sm" style="flex:2">
-                <input type="number" id="valorItem" placeholder="Valor R$" class="border p-2 rounded-lg text-sm" style="width:110px">
-                <button onclick="addSubitem()" class="bg-blue-600 text-white px-3 py-2 rounded-lg text-xs">Adicionar</button>
-            </div>
-            <div id="listaSubitens" class="space-y-1 text-xs"></div>
         </div>
 
         <div class="grid grid-cols-2 gap-2 mb-4">
             <div>
-                <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Vencimento</label>
-                <input type="date" id="dataVenc" class="w-full border p-2 rounded-lg outline-none text-sm bg-gray-50 transition-all">
+                <label class="text-[10px] font-bold text-gray-400 uppercase">Vencimento</label>
+                <input type="date" id="dataVenc" class="w-full border p-2 rounded-lg text-sm">
             </div>
             <div>
-                <label class="text-[10px] font-bold text-gray-400 uppercase ml-1">Status</label>
-                <select id="status" class="w-full border p-2 rounded-lg outline-none text-sm bg-gray-50">
+                <label class="text-[10px] font-bold text-gray-400 uppercase">Status</label>
+                <select id="status" class="w-full border p-2 rounded-lg text-sm">
                     <option value="pago">Pago</option>
                     <option value="pendente">Pendente</option>
                 </select>
             </div>
         </div>
 
-        <div class="flex gap-2 text-sm font-bold">
-            <button onclick="salvar('receita')" id="btn-receita" class="flex-1 bg-green-600 text-white py-3 rounded-xl uppercase hover:bg-green-700"> + Receita</button>
-            <button onclick="salvar('despesa')" id="btn-despesa" class="flex-1 bg-red-600 text-white py-3 rounded-xl uppercase hover:bg-red-700">- Despesa</button>
+        <div class="flex gap-2 font-bold">
+            <button onclick="salvar('receita')" id="btn-receita" class="flex-1 bg-green-600 text-white py-3 rounded-xl uppercase active:bg-green-700 transition"> + Receita</button>
+            <button onclick="salvar('despesa')" id="btn-despesa" class="flex-1 bg-red-600 text-white py-3 rounded-xl uppercase active:bg-red-700 transition">- Despesa</button>
             <button onclick="cancelarEdicao()" id="btn-cancelar" class="hidden flex-1 bg-gray-400 text-white py-3 rounded-xl uppercase">Cancelar</button>
         </div>
     </div>
@@ -129,101 +137,255 @@
     <div id="lista" class="space-y-3"></div>
 
     <script>
-        let transacoes = JSON.parse(localStorage.getItem('finance_app_v4')) || [];
-        let mesSelecionado = (new Date()).getMonth(); // 0 a 11
+        // --- Dados e estado ---
+        const STORAGE_KEY = 'finance_app_v5';
+        let transacoes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+        let mesSelecionado = (new Date()).getMonth();
         let anoSelecionado = (new Date()).getFullYear();
-        let subitensTemp = [];
 
-        function toggleCartaoCredito() {
-            const tipo = document.getElementById('classificacao').value;
-            const subitensDiv = document.getElementById('subitens-cartao');
-            if (tipo === 'cartao') {
-                subitensDiv.classList.remove('hidden');
-                document.getElementById('valor').setAttribute('readonly', true);
-            } else {
-                subitensDiv.classList.add('hidden');
-                document.getElementById('valor').removeAttribute('readonly');
-                subitensTemp = [];
-                atualizarSubitens();
-            }
+        const coresFronteira = {
+            'Mercado': 'border-mercado', 'Lazer': 'border-lazer', 'Saude': 'border-saude',
+            'Transporte': 'border-transporte', 'Essencial': 'border-essencial', 'Outros': 'border-outros'
+        };
+
+        // --- Helpers ---
+        function gerarId() {
+            return Date.now().toString() + '-' + Math.random().toString(36).slice(2);
         }
 
-        function addSubitem() {
-            const categoria = document.getElementById('categoriaItem').value;
-            const desc = document.getElementById('descItem').value;
-            const valor = parseFloat(document.getElementById('valorItem').value);
-
-            if (!desc || isNaN(valor)) {
-                alert("Preencha descrição e valor do subitem!");
-                return;
-            }
-            subitensTemp.push({categoria, desc, valor});
-            atualizarSubitens();
-            document.getElementById('descItem').value = '';
-            document.getElementById('valorItem').value = '';
+        function removerBOM(text) {
+            if (text && text.charCodeAt(0) === 0xFEFF) return text.slice(1);
+            return text;
         }
 
-        function atualizarSubitens() {
-            const div = document.getElementById('listaSubitens');
-            div.innerHTML = "";
-            let total = 0;
-            subitensTemp.forEach((item, idx) => {
-                total += item.valor;
-                div.innerHTML += `<div class="flex items-center justify-between bg-gray-100 rounded px-2 py-1">
-                    <span>[${item.categoria}] ${item.desc} - R$ ${item.valor.toFixed(2)}</span>
-                    <button onclick="removerSubitem(${idx})" class="text-red-500 ml-2">Excluir</button>
-                </div>`;
+        function formatBR(value) {
+            return 'R$ ' + Number(value || 0).toFixed(2).replace('.', ',');
+        }
+
+        // --- IMPORTAÇÃO (aceita os dois formatos: com e sem Categoria; detecta delimitador e cabeçalho) ---
+        const fileInput = document.getElementById('importFile');
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    let text = event.target.result;
+                    text = removerBOM(text);
+                    const rawLines = text.split(/\r?\n/);
+                    // remover linhas vazias do começo/fim
+                    const lines = rawLines.map(l => l.trim()).filter((l, idx) => l !== '' || (l === '' && (idx > 0 && idx < rawLines.length - 1)));
+                    if (lines.length === 0) {
+                        alert('Arquivo vazio ou sem conteúdo válido.');
+                        fileInput.value = '';
+                        return;
+                    }
+
+                    // Detectar delimitador: verificar primeira linha (header)
+                    const headerLine = lines[0];
+                    let delimiter = ';';
+                    const semiCount = (headerLine.match(/;/g) || []).length;
+                    const commaCount = (headerLine.match(/,/g) || []).length;
+                    if (semiCount === 0 && commaCount > 0) delimiter = ',';
+                    // Em muitos CSV exportados pelo Excel, valores podem ter ; e valores numéricos usam vírgula como decimal.
+                    // Aqui assumimos separador de colunas como ';' por padrão (mais comum no Brasil), mas detectamos caso seja ','
+                    
+                    const headers = headerLine.split(delimiter).map(h => h.replace(/(^"|"$)/g,'').trim().toLowerCase());
+                    const idxOf = (names) => {
+                        for (const n of names) {
+                            const i = headers.indexOf(n);
+                            if (i !== -1) return i;
+                        }
+                        return -1;
+                    };
+
+                    // Mapeamento flexível por nome de coluna (pt/pt-br sem acento / en)
+                    const iDesc = idxOf(['descricao','descrição','desc','description','title']) !== -1 ? idxOf(['descricao','descrição','desc','description','title']) : 0;
+                    const iValor = idxOf(['valor','value','amount']) !== -1 ? idxOf(['valor','value','amount']) : 1;
+                    const iTipo = idxOf(['tipo','type']) !== -1 ? idxOf(['tipo','type']) : 2;
+                    const iData = idxOf(['vencimento','data','date']) !== -1 ? idxOf(['vencimento','data','date']) : 3;
+                    const iStatus = idxOf(['status']) !== -1 ? idxOf(['status']) : -1;
+                    const iCat = idxOf(['categoria','category','cat']) !== -1 ? idxOf(['categoria','category','cat']) : -1;
+
+                    const imported = [];
+
+                    // ler a partir da segunda linha (após header)
+                    for (let i = 1; i < lines.length; i++) {
+                        const line = lines[i];
+                        if (!line) continue;
+                        // dividir pela vírgula de colunas (delimiter), mas preservar valores entre aspas
+                        const cols = parseCSVLine(line, delimiter);
+                        // Se poucas colunas, tentar alternativa com ; e com ,
+                        if (cols.length < 3) {
+                            const altCols1 = parseCSVLine(line, ';');
+                            if (altCols1.length > cols.length) {
+                                cols.splice(0, cols.length, ...altCols1);
+                            } else {
+                                const altCols2 = parseCSVLine(line, ',');
+                                if (altCols2.length > cols.length) cols.splice(0, cols.length, ...altCols2);
+                            }
+                        }
+                        if (cols.length < 2) continue;
+
+                        const desc = (cols[iDesc] !== undefined ? cols[iDesc] : (cols[0] || '')).trim();
+                        const valorRaw = (cols[iValor] !== undefined ? cols[iValor] : (cols[1] || '')).trim();
+                        const tipoRaw = (cols[iTipo] !== undefined ? cols[iTipo] : (cols[2] || '')).trim();
+                        const dataRaw = (cols[iData] !== undefined ? cols[iData] : (cols[3] || '')).trim();
+                        const statusRaw = (iStatus !== -1 && cols[iStatus] !== undefined) ? cols[iStatus].trim() : (cols[4] ? cols[4].trim() : 'pendente');
+                        const catRaw = (iCat !== -1 && cols[iCat] !== undefined) ? cols[iCat].trim() : (cols[5] ? cols[5].trim() : 'Outros');
+
+                        // normalizar valor: aceitar formatos 1.234,56 ou 1234.56 / 1234,56
+                        let valor = parseFloat(String(valorRaw).replace(/\./g, '').replace(',', '.'));
+                        if (isNaN(valor)) valor = 0;
+
+                        const tipo = String(tipoRaw).toLowerCase().includes('receita') || String(tipoRaw).toLowerCase().includes('in') ? 'receita' : 'despesa';
+
+                        // normalizar data: aceitar yyyy-mm-dd ou dd/mm/yyyy
+                        let dataVenc = String(dataRaw).trim();
+                        if (!dataVenc) {
+                            const d = new Date();
+                            dataVenc = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                        } else if (dataVenc.includes('/')) {
+                            const parts = dataVenc.split('/');
+                            if (parts.length === 3) {
+                                const [d, m, y] = parts;
+                                dataVenc = `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+                            }
+                        } else if (!/^\d{4}-\d{2}-\d{2}$/.test(dataVenc)) {
+                            // tentar extrair dígitos se estiver em outro formato
+                            const m = dataVenc.match(/(\d{4})[^\d]?(\d{2})[^\d]?(\d{2})/);
+                            if (m) dataVenc = `${m[1]}-${m[2]}-${m[3]}`;
+                            else {
+                                const d = new Date();
+                                dataVenc = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                            }
+                        }
+
+                        const status = String(statusRaw || 'pendente').toLowerCase();
+                        const categoria = String(catRaw || 'Outros').trim() || 'Outros';
+
+                        imported.push({
+                            id: gerarId(),
+                            desc,
+                            valor,
+                            tipo,
+                            dataVenc,
+                            status,
+                            categoria
+                        });
+                    }
+
+                    if (imported.length === 0) {
+                        alert('Nenhuma transação válida encontrada no arquivo.');
+                    } else {
+                        if (confirm(`Deseja importar ${imported.length} itens?`)) {
+                            transacoes = [...transacoes, ...imported];
+                            atualizarApp();
+                            alert("Dados importados!");
+                        }
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert("Erro ao ler o arquivo CSV.");
+                } finally {
+                    // Reset fundamental para celular
+                    fileInput.value = '';
+                }
+            };
+            reader.readAsText(file, "UTF-8");
+        });
+
+        // parse de linha CSV simples que respeita aspas (aceita delimitador passado)
+        function parseCSVLine(line, delimiter) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            for (let i = 0; i < line.length; i++) {
+                const ch = line[i];
+                const nch = line[i+1];
+                if (ch === '"' ) {
+                    if (inQuotes && nch === '"') { // dupla aspas dentro do campo -> literal "
+                        current += '"';
+                        i++; // pular segunda "
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                    continue;
+                }
+                if (ch === delimiter && !inQuotes) {
+                    result.push(current);
+                    current = '';
+                    continue;
+                }
+                current += ch;
+            }
+            result.push(current);
+            return result.map(s => s.replace(/(^"|"$)/g, '').trim());
+        }
+
+        // --- EXPORTAÇÃO ---
+        function exportarCSV() {
+            if (!transacoes || transacoes.length === 0) return alert("Sem dados.");
+            // Cabeçalho fixo (em pt) — inclui Categoria
+            let csv = "\uFEFFDescricao;Valor;Tipo;Vencimento;Status;Categoria\n";
+            transacoes.forEach(t => {
+                const desc = `"${String(t.desc || '').replace(/"/g, '""')}"`;
+                const valor = (Number(t.valor || 0)).toFixed(2).replace('.', ',');
+                const tipo = t.tipo || 'despesa';
+                const dataVenc = t.dataVenc || '';
+                const status = t.status || 'pendente';
+                const categoria = t.categoria || 'Outros';
+                csv += `${desc};${valor};${tipo};${dataVenc};${status};${categoria}\n`;
             });
-            document.getElementById('valor').value = total ? total.toFixed(2) : '';
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `financeiro_backup.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
         }
 
-        function removerSubitem(idx) {
-            subitensTemp.splice(idx, 1);
-            atualizarSubitens();
-        }
-
-        function salvar(tipo) {
+        // --- CRUD (Salvar / Editar / Remover) ---
+        function salvar(tipoParam) {
             const idEdit = document.getElementById('edit-id').value;
-            const desc = document.getElementById('desc').value;
-            const classificacao = document.getElementById('classificacao').value;
-            const valor = parseFloat(document.getElementById('valor').value);
+            const desc = document.getElementById('desc').value.trim();
+            const valorInput = document.getElementById('valor').value;
+            const valor = parseFloat(String(valorInput).replace(',', '.'));
             const dataVenc = document.getElementById('dataVenc').value;
             const status = document.getElementById('status').value;
+            const categoria = document.getElementById('categoria').value;
 
             if (!desc || isNaN(valor) || !dataVenc) return alert("Preencha todos os campos!");
 
-            let subitens = classificacao === 'cartao' ? [...subitensTemp] : null;
-
-            if (classificacao === 'cartao' && (!subitens || subitens.length === 0)) {
-                return alert("Adicione pelo menos um subitem para cartão de crédito!");
-            }
-
             if (idEdit) {
-                const index = transacoes.findIndex(t => t.id == idEdit);
-                transacoes[index] = { ...transacoes[index], desc, valor, tipo, dataVenc, status, classificacao, subitens };
+                // Atualizar mantendo o tipo original da transação
+                const idx = transacoes.findIndex(t => t.id === idEdit);
+                if (idx === -1) return alert('Transação não encontrada para edição.');
+                const tipoAtual = transacoes[idx].tipo || tipoParam || 'despesa';
+                transacoes[idx] = { id: idEdit, desc, valor: Number(valor), tipo: tipoAtual, dataVenc, status, categoria };
             } else {
-                transacoes.push({ id: Date.now(), desc, valor, tipo, dataVenc, status, classificacao, subitens });
+                const obj = { id: gerarId(), desc, valor: Number(valor), tipo: tipoParam, dataVenc, status, categoria };
+                transacoes.push(obj);
             }
-            subitensTemp = [];
             cancelarEdicao();
             atualizarApp();
         }
 
         function editar(id) {
-            const item = transacoes.find(t => t.id === id);
-            document.getElementById('edit-id').value = item.id;
-            document.getElementById('desc').value = item.desc;
-            document.getElementById('classificacao').value = item.classificacao || 'comum';
-            toggleCartaoCredito();
-            document.getElementById('valor').value = item.valor;
-            document.getElementById('dataVenc').value = item.dataVenc;
-            document.getElementById('status').value = item.status;
-            if (item.classificacao === 'cartao' && item.subitens) {
-                subitensTemp = [...item.subitens];
-                atualizarSubitens();
-            }
-            document.getElementById('form-container').classList.add('ring-2', 'ring-blue-500');
-            document.getElementById('btn-receita').innerText = "CONCLUIR";
+            const t = transacoes.find(i => i.id === id);
+            if (!t) return alert('Transação não encontrada.');
+            document.getElementById('edit-id').value = t.id;
+            document.getElementById('desc').value = t.desc;
+            document.getElementById('valor').value = t.valor;
+            document.getElementById('dataVenc').value = t.dataVenc;
+            document.getElementById('status').value = t.status;
+            document.getElementById('categoria').value = t.categoria || 'Outros';
+            document.getElementById('btn-receita').innerText = "ATUALIZAR";
+            // Esconder botão despesa para evitar mudar tipo acidentalmente (mantemos o tipo atual)
             document.getElementById('btn-despesa').classList.add('hidden');
             document.getElementById('btn-cancelar').classList.remove('hidden');
             window.scrollTo({top: 0, behavior: 'smooth'});
@@ -232,181 +394,111 @@
         function cancelarEdicao() {
             document.getElementById('edit-id').value = '';
             document.getElementById('desc').value = '';
-            document.getElementById('classificacao').value = 'comum';
-            toggleCartaoCredito();
             document.getElementById('valor').value = '';
             document.getElementById('dataVenc').value = '';
+            document.getElementById('status').value = 'pendente';
+            document.getElementById('categoria').value = 'Mercado';
             document.getElementById('btn-receita').innerText = "+ Receita";
             document.getElementById('btn-despesa').classList.remove('hidden');
             document.getElementById('btn-cancelar').classList.add('hidden');
-            document.getElementById('form-container').classList.remove('ring-2', 'ring-blue-500');
-            subitensTemp = [];
-            atualizarSubitens();
         }
 
         function remover(id) {
-            if(confirm("Deseja realmente excluir este registro?")) {
+            if (confirm("Excluir definitivamente?")) {
                 transacoes = transacoes.filter(t => t.id !== id);
                 atualizarApp();
             }
         }
 
-        function focarData(data) {
-            const input = document.getElementById('dataVenc');
-            input.value = data;
-            window.scrollTo({top: document.getElementById('form-container').offsetTop - 20, behavior: 'smooth'});
-            input.classList.add('ring-4', 'ring-blue-300');
-            setTimeout(() => input.classList.remove('ring-4', 'ring-blue-300'), 1500);
-        }
-
-        function mudarMes(direcao) {
-            mesSelecionado += direcao;
-            if (mesSelecionado < 0) {
-                mesSelecionado = 11;
-                anoSelecionado--;
-            }
-            if (mesSelecionado > 11) {
-                mesSelecionado = 0;
-                anoSelecionado++;
-            }
+        // --- Navegação de mês ---
+        function mudarMes(dir) {
+            mesSelecionado += dir;
+            if (mesSelecionado < 0) { mesSelecionado = 11; anoSelecionado--; }
+            else if (mesSelecionado > 11) { mesSelecionado = 0; anoSelecionado++; }
             atualizarApp();
         }
 
-        function gerarCalendario() {
-            const grid = document.getElementById('calendar-grid');
-            const titulo = document.getElementById('mes-ano');
-            grid.innerHTML = '';
-            titulo.innerText = new Date(anoSelecionado, mesSelecionado).toLocaleString('pt-br', { month: 'long', year: 'numeric' });
-
-            const primeiroDia = new Date(anoSelecionado, mesSelecionado, 1).getDay();
-            const totalDias = new Date(anoSelecionado, mesSelecionado + 1, 0).getDate();
-
-            for (let i = 0; i < primeiroDia; i++) grid.innerHTML += `<div></div>`;
-
-            for (let dia = 1; dia <= totalDias; dia++) {
-                const dataString = `${anoSelecionado}-${String(mesSelecionado + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
-                const movs = transacoes.filter(t => t.dataVenc === dataString);
-
-                let classeCor = "";
-                const temRec = movs.some(t => t.tipo === 'receita');
-                const temDes = movs.some(t => t.tipo === 'despesa');
-
-                if (temRec && temDes) classeCor = "has-ambos";
-                else if (temRec) classeCor = "has-receita";
-                else if (temDes) classeCor = "has-despesa";
-
-                const hoje = new Date();
-                const isHoje = dia === hoje.getDate() && mesSelecionado === hoje.getMonth() && anoSelecionado === hoje.getFullYear();
-
-                grid.innerHTML += `
-                    <div class="calendar-day ${classeCor} ${isHoje ? 'today' : ''}" onclick="focarData('${dataString}')">
-                        ${dia}
-                    </div>`;
-            }
-        }
-
-        function importarExcel(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const linhas = e.target.result.split(/\r?\n/).slice(1);
-                    let novos = [];
-                    linhas.forEach(l => {
-                        if(l.trim() === "") return;
-                        const c = l.split(';');
-                        if (c.length >= 5) {
-                            novos.push({ id: Date.now() + Math.random(), desc: c[0].replace(/"/g, ''), valor: parseFloat(c[1].replace(',', '.')), tipo: c[2].trim(), dataVenc: c[3].trim(), status: c[4].trim() });
-                        }
-                    });
-                    if (novos.length > 0) {
-                        transacoes = [...transacoes, ...novos];
-                        atualizarApp();
-                        alert("Importado com sucesso!");
-                    } else {
-                        alert("Nenhum dado válido encontrado no arquivo!");
-                    }
-                } catch (err) { alert("Erro ao importar."); }
-            };
-            reader.readAsText(file);
-            event.target.value = '';
-        }
-
-        function exportarExcel() {
-            if (transacoes.length === 0) return alert("Sem dados.");
-            let csv = "\uFEFFDescricao;Valor;Tipo;Vencimento;Status\n";
-            transacoes.forEach(t => csv += `${t.desc};${t.valor.toFixed(2).replace('.', ',')};${t.tipo};${t.dataVenc};${t.status}\n`);
-            const link = document.createElement("a");
-            link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-            link.download = "financeiro.csv";
-            link.click();
-        }
-
+        // --- Atualiza lista, totais e calendário ---
         function atualizarApp() {
-            localStorage.setItem('finance_app_v4', JSON.stringify(transacoes));
-            const lista = document.getElementById('lista');
-            let r = 0, d = 0;
-            lista.innerHTML = '';
+            // Persistir
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(transacoes));
 
-            const mesAtual = mesSelecionado + 1;
-            const anoAtual = anoSelecionado;
+            const listaDiv = document.getElementById('lista');
+            const filtro = document.getElementById('filtro-categoria').value;
+            let totalReceitas = 0, totalDespesas = 0, saldoTotal = 0;
 
-            const transacoesMes = transacoes.filter(t => {
-                const [ano, mes] = t.dataVenc.split('-');
-                return parseInt(ano) === anoAtual && parseInt(mes) === mesAtual;
-            });
-
-            let saldoAcumulado = 0;
+            // Calcular saldo acumulado considerando todas as transações
             transacoes.forEach(t => {
-                const [ano, mes] = t.dataVenc.split('-');
-                if (
-                    (parseInt(ano) < anoAtual) ||
-                    (parseInt(ano) === anoAtual && parseInt(mes) < mesAtual)
-                ) {
-                    if (t.tipo === 'receita') saldoAcumulado += t.valor;
-                    else saldoAcumulado -= t.valor;
-                }
+                if (t.tipo === 'receita') saldoTotal += Number(t.valor || 0);
+                else saldoTotal -= Number(t.valor || 0);
             });
 
-            transacoesMes.sort((a, b) => new Date(b.dataVenc) - new Date(a.dataVenc));
-            transacoesMes.forEach(t => {
-                let subitemHtml = '';
-                if (t.classificacao === 'cartao' && t.subitens && t.subitens.length > 0) {
-                    subitemHtml = `<ul class="text-[10px] text-gray-600 ml-2">
-                        ${t.subitens.map(s => `<li>[${s.categoria}] ${s.desc} - R$ ${s.valor.toFixed(2)}</li>`).join('')}
-                    </ul>`;
-                }
-                if (t.tipo === 'receita') r += t.valor; else d += t.valor;
-                lista.innerHTML += `
-                    <div class="card flex justify-between items-center border-l-8 ${t.tipo === 'receita' ? 'border-green-500' : 'border-red-500'} mb-3">
+            // Filtrar transações do mês selecionado para exibição/lista
+            const transacoesMes = transacoes.filter(t => {
+                if (!t.dataVenc) return false;
+                const parts = String(t.dataVenc).split('-');
+                if (parts.length !== 3) return false;
+                const ano = parseInt(parts[0], 10);
+                const mes = parseInt(parts[1], 10); // 1..12
+                return ano === anoSelecionado && mes === (mesSelecionado + 1);
+            });
+
+            const exibicao = transacoesMes.filter(t => filtro === 'todos' || t.categoria === filtro);
+
+            listaDiv.innerHTML = '';
+            exibicao.sort((a,b) => new Date(b.dataVenc) - new Date(a.dataVenc)).forEach(t => {
+                if (t.tipo === 'receita') totalReceitas += Number(t.valor || 0); else totalDespesas += Number(t.valor || 0);
+                const borda = t.tipo === 'receita' ? 'border-green-500' : (coresFronteira[t.categoria] || 'border-outros');
+                listaDiv.innerHTML += `
+                    <div class="card flex justify-between items-center border-l-8 ${borda} mb-3">
                         <div>
-                            <p class="font-bold text-gray-800 text-xs uppercase">${t.desc}
-                                ${t.classificacao === 'cartao' ? '<span class="ml-2 text-blue-500 text-[10px]">Cartão de Crédito</span>' : ''}
-                            </p>
-                            <p class="text-[10px] text-gray-400">${t.dataVenc.split('-').reverse().join('/')} | ${t.status.toUpperCase()}</p>
-                            ${subitemHtml}
-                            <div class="mt-1 flex gap-3">
-                                <button onclick="editar(${t.id})" class="text-blue-600 text-[10px] font-bold">EDITAR</button>
-                                <button onclick="remover(${t.id})" class="text-gray-400 text-[10px]">EXCLUIR</button>
+                            <p class="font-bold text-gray-800 text-xs uppercase">${t.desc}</p>
+                            <p class="text-[9px] text-gray-400 font-bold">${(t.categoria || 'OUTROS').toUpperCase()} | ${(t.dataVenc || '').split('-').reverse().join('/')}</p>
+                            <div class="mt-2 flex gap-4 text-[10px] font-bold uppercase">
+                                <button onclick="editar('${t.id}')" class="text-blue-600">Editar</button>
+                                <button onclick="remover('${t.id}')" class="text-red-400">Excluir</button>
+                                <span class="${t.status === 'pago' ? 'text-green-500' : 'text-orange-500'}">${t.status}</span>
                             </div>
                         </div>
-                        <p class="font-black text-sm ${t.tipo === 'receita' ? 'text-green-600' : 'text-red-600'}">R$ ${t.valor.toFixed(2)}</p>
+                        <p class="font-black text-sm ${t.tipo === 'receita' ? 'text-green-600' : 'text-red-600'}">${formatBR(t.valor)}</p>
                     </div>`;
             });
 
-            document.getElementById('total-receitas').innerText = `R$ ${r.toFixed(2)}`;
-            document.getElementById('total-despesas').innerText = `R$ ${d.toFixed(2)}`;
-            document.getElementById('saldo-acumulado').innerText = `R$ ${(saldoAcumulado + r - d).toFixed(2)}`;
+            document.getElementById('total-receitas').innerText = formatBR(totalReceitas);
+            document.getElementById('total-despesas').innerText = formatBR(totalDespesas);
+            document.getElementById('saldo-acumulado').innerText = formatBR(saldoTotal);
+
             gerarCalendario();
         }
 
-        window.onload = () => {
-            atualizarApp();
-            const hoje = new Date().toISOString().split('T')[0];
-            const p = transacoes.filter(t => t.status === 'pendente' && t.tipo === 'despesa' && t.dataVenc >= hoje).sort((a,b)=>new Date(a.dataVenc)-new Date(b.dataVenc))[0];
-            if (p) alert(`🔔 CONTA PRÓXIMA: "${p.desc.toUpperCase()}" vence em ${p.dataVenc.split('-').reverse().join('/')}`);
-        };
+        // --- Gera calendário do mês selecionado ---
+        function gerarCalendario() {
+            const grid = document.getElementById('calendar-grid');
+            grid.innerHTML = '';
+            document.getElementById('mes-ano').innerText = new Date(anoSelecionado, mesSelecionado).toLocaleString('pt-br', { month: 'long', year: 'numeric' });
+            const prim = new Date(anoSelecionado, mesSelecionado, 1).getDay();
+            const ult = new Date(anoSelecionado, mesSelecionado + 1, 0).getDate();
+            // Preencher dias vazios do começo do mês
+            for (let i = 0; i < prim; i++) grid.innerHTML += `<div></div>`;
+            for (let dia = 1; dia <= ult; dia++) {
+                const dt = `${anoSelecionado}-${String(mesSelecionado + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                const movs = transacoes.filter(t => t.dataVenc === dt);
+                let cl = "";
+                if (movs.length > 0) {
+                    const hasRec = movs.some(m => m.tipo === 'receita');
+                    const hasDes = movs.some(m => m.tipo === 'despesa');
+                    cl = hasRec && hasDes ? "has-ambos" : (hasRec ? "has-receita" : (hasDes ? "has-despesa" : ""));
+                }
+                // marcar hoje (apenas visual)
+                const hoje = new Date();
+                const ehHoje = hoje.getFullYear() === anoSelecionado && (hoje.getMonth() === mesSelecionado) && (hoje.getDate() === dia);
+                const todayClass = ehHoje ? ' today' : '';
+                grid.innerHTML += `<div class="calendar-day ${cl}${todayClass}" onclick="document.getElementById('dataVenc').value='${dt}'">${dia}</div>`;
+            }
+        }
+
+        // Inicialização
+        window.onload = atualizarApp;
     </script>
 </body>
 </html>
