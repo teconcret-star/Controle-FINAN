@@ -186,16 +186,26 @@
         </div>
 
         <div class="flex gap-2 font-bold">
-            <button onclick="salvar('receita')" id="btn-receita" class="flex-1 bg-green-600 text-white py-3 rounded-xl uppercase active:bg-green-700 transition"> + Receita</button>
-            <button onclick="salvar('despesa')" id="btn-despesa" class="flex-1 bg-red-600 text-white py-3 rounded-xl uppercase active:bg-red-700 transition">- Despesa</button>
-            <button onclick="cancelarEdicao()" id="btn-cancelar" class="hidden flex-1 bg-gray-400 text-white py-3 rounded-xl uppercase">Cancelar</button>
+            <button onclick="salvar('receita')" id="btn-receita" class="flex-1 bg-green-600 text-white py-3 rounded-xl uppercase active:bg-green-700 transition" type="button"> + Receita</button>
+            <button onclick="salvar('despesa')" id="btn-despesa" class="flex-1 bg-red-600 text-white py-3 rounded-xl uppercase active:bg-red-700 transition" type="button">- Despesa</button>
+            <button onclick="cancelarEdicao()" id="btn-cancelar" class="hidden flex-1 bg-gray-400 text-white py-3 rounded-xl uppercase" type="button">Cancelar</button>
         </div>
     </div>
 
     <div id="lista" class="space-y-3"></div>
 
     <script>
-        let transacoes = JSON.parse(localStorage.getItem('finance_app_v5')) || [];
+        // --- utilidades ---
+        function generateId() {
+            return Date.now().toString() + Math.floor(Math.random() * 100000).toString();
+        }
+
+        // carregar transacoes e normalizar IDs como string
+        let transacoes = (JSON.parse(localStorage.getItem('finance_app_v5')) || []).map(t => {
+            if (t && t.id !== undefined) t.id = String(t.id);
+            return t;
+        });
+
         let mesSelecionado = (new Date()).getMonth();
         let anoSelecionado = (new Date()).getFullYear();
 
@@ -258,7 +268,7 @@
                             }
 
                             imported.push({
-                                id: Date.now() + Math.random(),
+                                id: generateId(),
                                 desc: descricao,
                                 valor,
                                 tipo,
@@ -448,7 +458,8 @@
 
             if (!desc || isNaN(valor) || !dataVenc) return alert("Preencha todos os campos!");
 
-            let obj = { id: idEdit ? Number(idEdit) : Date.now(), desc, valor: Number(valor) || 0, tipo, dataVenc, status, categoria, subcategoria, classificacao };
+            const newId = idEdit || generateId();
+            let obj = { id: String(newId), desc, valor: Number(valor) || 0, tipo, dataVenc, status, categoria, subcategoria, classificacao };
 
             if (tipo === 'despesa' && classificacao === 'cartao') {
                 const itens = coletarItensCartao();
@@ -461,7 +472,7 @@
             }
 
             if (idEdit) {
-                const idx = transacoes.findIndex(t => t.id == idEdit);
+                const idx = transacoes.findIndex(t => String(t.id) === String(idEdit));
                 if (idx > -1) transacoes[idx] = obj;
             } else {
                 transacoes.push(obj);
@@ -471,8 +482,10 @@
         }
 
         function editar(id) {
-            const t = transacoes.find(i => i.id == id);
-            if (!t) return;
+            // id esperado sempre como string (vindo de data-id)
+            id = String(id);
+            const t = transacoes.find(i => String(i.id) === id);
+            if (!t) return alert("Registro não encontrado para edição.");
             document.getElementById('edit-id').value = t.id;
             document.getElementById('desc').value = t.desc;
             document.getElementById('valor').value = (Number(t.valor) || 0).toFixed(2);
@@ -518,8 +531,10 @@
         }
 
         function remover(id) {
+            // id esperado como string
+            id = String(id);
             if(confirm("Excluir definitivamente?")) { 
-                transacoes = transacoes.filter(t => t.id != id); 
+                transacoes = transacoes.filter(t => String(t.id) !== id); 
                 atualizarApp(); 
             }
         }
@@ -555,6 +570,7 @@
         }
 
         function atualizarApp() {
+            // salvar com IDs como string
             localStorage.setItem('finance_app_v5', JSON.stringify(transacoes));
             const listaDiv = document.getElementById('lista');
             const filtro = document.getElementById('filtro-categoria').value;
@@ -630,6 +646,7 @@
 
                 const categoriaDisplay = `${t.categoria ? t.categoria.toUpperCase() : ''}${t.subcategoria ? ' • ' + (t.subcategoria === 'RefeicaoFora' ? 'Refeição fora' : t.subcategoria === 'RefeicaoCasa' ? 'Refeição casa' : t.subcategoria) : ''}`;
 
+                // NOTE: usamos data-id e classes para manipulação via event listeners (mais robusto que onclick inline)
                 listaDiv.innerHTML += `
                     <div class="card flex flex-col border-l-8 ${borda} mb-3">
                         <div class="flex justify-between items-start">
@@ -637,8 +654,8 @@
                                 <p class="font-bold text-gray-800 text-xs uppercase">${t.desc}</p>
                                 <p class="text-[9px] text-gray-400 font-bold">${(t.classificacao === 'cartao' ? 'Cartão • ' : '')}${categoriaDisplay} | ${t.dataVenc.split('-').reverse().join('/')}</p>
                                 <div class="mt-2 flex gap-4 text-[10px] font-bold uppercase">
-                                    <button onclick="editar(${t.id})" class="text-blue-600">Editar</button>
-                                    <button onclick="remover(${t.id})" class="text-red-400">Excluir</button>
+                                    <button type="button" class="btn-edit text-blue-600" data-id="${t.id}">Editar</button>
+                                    <button type="button" class="btn-delete text-red-400" data-id="${t.id}">Excluir</button>
                                     <span class="${t.status === 'pago' ? 'text-green-500' : 'text-orange-500'}">${t.status}</span>
                                 </div>
                             </div>
@@ -648,10 +665,30 @@
                     </div>`;
             });
 
+            // após inserir HTML, ligar ouvintes de evento para editar/excluir (delegação)
+            listaDiv.querySelectorAll('.btn-edit').forEach(btn => {
+                btn.removeEventListener('click', handleEditClick);
+                btn.addEventListener('click', handleEditClick);
+            });
+            listaDiv.querySelectorAll('.btn-delete').forEach(btn => {
+                btn.removeEventListener('click', handleDeleteClick);
+                btn.addEventListener('click', handleDeleteClick);
+            });
+
             document.getElementById('total-receitas').innerText = `R$ ${r.toFixed(2)}`;
             document.getElementById('total-despesas').innerText = `R$ ${d.toFixed(2)}`;
             document.getElementById('saldo-acumulado').innerText = `R$ ${saldoTotal.toFixed(2)}`;
             gerarCalendario();
+        }
+
+        // handlers separados (facilitam remove/add e debug)
+        function handleEditClick(e) {
+            const id = e.currentTarget.dataset.id;
+            editar(id);
+        }
+        function handleDeleteClick(e) {
+            const id = e.currentTarget.dataset.id;
+            remover(id);
         }
 
         function gerarCalendario() {
@@ -665,6 +702,7 @@
                 const dt = `${anoSelecionado}-${String(mesSelecionado + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
                 const movs = transacoes.filter(t => t.dataVenc === dt);
                 let cl = movs.some(m => m.tipo === 'receita') && movs.some(m => m.tipo === 'despesa') ? "has-ambos" : (movs.some(m => m.tipo === 'receita') ? "has-receita" : (movs.some(m => m.tipo === 'despesa') ? "has-despesa" : ""));
+                // manter onclick inline aqui apenas para preenchimento da data (simples)
                 grid.innerHTML += `<div class="calendar-day ${cl}" onclick="document.getElementById('dataVenc').value='${dt}'">${dia}</div>`;
             }
         }
